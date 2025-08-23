@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>整合测试 - 高质量天气渲染器</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 20px;
+      font-family: Arial, sans-serif;
+      background: #1a1a1a;
+      color: white;
+    }
+    #test-container {
+      width: 100%;
+      height: 400px;
+      border: 2px solid #4CAF50;
+      border-radius: 10px;
+      margin: 20px 0;
+      position: relative;
+    }
+    .info-panel {
+      background: rgba(0, 0, 0, 0.8);
+      padding: 15px;
+      border-radius: 10px;
+      margin: 10px 0;
+    }
+    .test-btn {
+      background: #4CAF50;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 5px;
+      margin: 5px;
+      cursor: pointer;
+    }
+    .test-btn:hover {
+      background: #45a049;
+    }
+    .status {
+      display: inline-block;
+      padding: 5px 10px;
+      border-radius: 15px;
+      font-size: 12px;
+      margin-left: 10px;
+    }
+    .status.success {
+      background: #4CAF50;
+    }
+    .status.error {
+      background: #f44336;
+    }
+    .status.loading {
+      background: #ff9800;
+    }
+  </style>
+</head>
+<body>
+  <h1>🌤️ 高质量天气渲染器整合测试</h1>
+  
+  <div class="info-panel">
+    <h3>测试状态</h3>
+    <div id="loading-status">
+      <span class="status loading">加载中...</span>
+    </div>
+    <div id="renderer-status">
+      <span class="status loading">渲染器状态未知</span>
+    </div>
+    <div id="engine-status">
+      <span class="status loading">引擎状态未知</span>
+    </div>
+  </div>
+  
+  <div class="info-panel">
+    <h3>快速测试</h3>
+    <button class="test-btn" onclick="testBasicRendering()">基础渲染测试</button>
+    <button class="test-btn" onclick="testWeatherSwitch()">天气切换测试</button>
+    <button class="test-btn" onclick="testParameterControl()">参数控制测试</button>
+    <button class="test-btn" onclick="showCurrentState()">显示当前状态</button>
+  </div>
+  
+  <div id="test-container"></div>
+  
+  <div class="info-panel">
+    <h3>测试日志</h3>
+    <div id="test-log" style="height: 200px; overflow-y: auto; background: #000; padding: 10px; border-radius: 5px; font-family: monospace; font-size: 12px;"></div>
+  </div>
+  
+  <script src="../three.min.js"></script>
+  <script src="advanced-weather-renderer.js"></script>
+  <script src="full-weather-engine.js"></script>
+  
+  <script>
+    let weatherEngine = null;
+    let testContainer = document.getElementById('test-container');
+    let testLog = document.getElementById('test-log');
+    
+    function log(message) {
+      const timestamp = new Date().toLocaleTimeString();
+      testLog.innerHTML += `[${timestamp}] ${message}\n`;
+      testLog.scrollTop = testLog.scrollHeight;
+      console.log(message);
+    }
+    
+    function updateStatus(elementId, message, type) {
+      const element = document.getElementById(elementId);
+      element.innerHTML = `<span class="status ${type}">${message}</span>`;
+    }
+    
+    // 初始化测试
+    async function initTest() {
+      try {
+        updateStatus('loading-status', '正在加载...', 'loading');
+        log('开始初始化天气引擎...');
+        
+        weatherEngine = new FullWeatherEngine(testContainer);
+        await weatherEngine.initializationPromise;
+        
+        updateStatus('loading-status', '加载成功', 'success');
+        updateStatus('renderer-status', '渲染器已就绪', 'success');
+        updateStatus('engine-status', '引擎运行正常', 'success');
+        
+        log('✅ 天气引擎初始化成功');
+        log('✅ 高质量渲染器已加载');
+        
+        // 显示初始状态
+        setTimeout(showCurrentState, 1000);
+        
+      } catch (error) {
+        updateStatus('loading-status', '加载失败', 'error');
+        updateStatus('renderer-status', '渲染器错误', 'error');
+        updateStatus('engine-status', '引擎错误', 'error');
+        log(`❌ 初始化失败: ${error.message}`);
+        console.error(error);
+      }
+    }
+    
+    // 基础渲染测试
+    function testBasicRendering() {
+      log('🧪 开始基础渲染测试...');
+      
+      if (!weatherEngine) {
+        log('❌ 天气引擎未初始化');
+        return;
+      }
+      
+      const state = weatherEngine.getEngineState();
+      log(`📊 渲染状态: ${JSON.stringify(state.renderState, null, 2)}`);
+      log('✅ 基础渲染测试完成');
+    }
+    
+    // 天气切换测试
+    async function testWeatherSwitch() {
+      log('🧪 开始天气切换测试...');
+      
+      if (!weatherEngine) {
+        log('❌ 天气引擎未初始化');
+        return;
+      }
+      
+      const weatherTypes = ['clear', 'cloudy', 'rain', 'snow'];
+      
+      for (const weatherType of weatherTypes) {
+        log(`🌦️ 切换到 ${weatherType} 天气...`);
+        weatherEngine.controlParams.weatherType = weatherType;
+        weatherEngine.updateWeatherType();
+        
+        // 等待一下让效果显示
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+      
+      log('✅ 天气切换测试完成');
+    }
+    
+    // 参数控制测试
+    function testParameterControl() {
+      log('🧪 开始参数控制测试...');
+      
+      if (!weatherEngine) {
+        log('❌ 天气引擎未初始化');
+        return;
+      }
+      
+      // 测试太阳位置
+      log('☀️ 测试太阳位置变化...');
+      weatherEngine.controlParams.sunAltitude = 60;
+      weatherEngine.controlParams.sunAzimuth = 90;
+      weatherEngine.updateSunPosition();
+      
+      // 测试云层参数
+      log('☁️ 测试云层参数变化...');
+      weatherEngine.controlParams.cloudOpacity = 0.8;
+      weatherEngine.controlParams.cloudSpeed = 2.0;
+      weatherEngine.applyControlParams();
+      
+      // 测试雾浓度
+      log('🌫️ 测试雾浓度变化...');
+      weatherEngine.controlParams.fogDensity = 0.1;
+      weatherEngine.applyControlParams();
+      
+      log('✅ 参数控制测试完成');
+    }
+    
+    // 显示当前状态
+    function showCurrentState() {
+      log('📊 当前状态信息:');
+      
+      if (!weatherEngine) {
+        log('❌ 天气引擎未初始化');
+        return;
+      }
+      
+      const state = weatherEngine.getEngineState();
+      log(`🔧 控制参数: ${JSON.stringify(state.controlParams, null, 2)}`);
+      log(`🎨 当前模板: ${state.currentTemplate}`);
+      log(`🌤️ 当前天气: ${state.currentWeather ? state.currentWeather.type : '未知'}`);
+      log(`📍 位置: ${state.currentLocation ? `${state.currentLocation.latitude}, ${state.currentLocation.longitude}` : '未知'}`);
+    }
+    
+    // 页面加载完成后开始测试
+    window.addEventListener('load', () => {
+      log('🚀 整合测试开始...');
+      initTest();
+    });
+  </script>
+</body>
+</html>

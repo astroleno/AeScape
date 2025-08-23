@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>调试测试 - 天气引擎</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 20px;
+      font-family: Arial, sans-serif;
+      background: #1a1a1a;
+      color: white;
+    }
+    #test-container {
+      width: 100%;
+      height: 400px;
+      border: 2px solid #4CAF50;
+      border-radius: 10px;
+      margin: 20px 0;
+      position: relative;
+    }
+    .log {
+      background: #000;
+      color: #0f0;
+      padding: 10px;
+      border-radius: 5px;
+      font-family: monospace;
+      font-size: 12px;
+      height: 300px;
+      overflow-y: auto;
+      margin: 10px 0;
+    }
+    .error {
+      color: #f44;
+    }
+    .success {
+      color: #4f4;
+    }
+    .warning {
+      color: #ff4;
+    }
+  </style>
+</head>
+<body>
+  <h1>🔧 天气引擎调试测试</h1>
+  
+  <div id="test-container"></div>
+  
+  <div class="log" id="log"></div>
+  
+  <script>
+    function log(message, type = 'info') {
+      const logDiv = document.getElementById('log');
+      const timestamp = new Date().toLocaleTimeString();
+      const colorClass = type === 'error' ? 'error' : type === 'success' ? 'success' : type === 'warning' ? 'warning' : '';
+      logDiv.innerHTML += `<span class="${colorClass}">[${timestamp}] ${message}</span><br>`;
+      logDiv.scrollTop = logDiv.scrollHeight;
+      console.log(`[${type}] ${message}`);
+    }
+    
+    async function debugTest() {
+      try {
+        log('=== 开始调试测试 ===', 'info');
+        
+        // 步骤1: 检查脚本加载
+        log('步骤1: 检查脚本加载...', 'info');
+        
+        // 检查THREE.js
+        if (typeof THREE === 'undefined') {
+          log('❌ THREE.js 未加载', 'error');
+          throw new Error('THREE.js 未加载');
+        }
+        log('✅ THREE.js 已加载', 'success');
+        
+        // 检查AdvancedWeatherRenderer
+        if (typeof AdvancedWeatherRenderer === 'undefined') {
+          log('❌ AdvancedWeatherRenderer 未加载', 'error');
+          throw new Error('AdvancedWeatherRenderer 未加载');
+        }
+        log('✅ AdvancedWeatherRenderer 已加载', 'success');
+        
+        // 检查FullWeatherEngine
+        if (typeof FullWeatherEngine === 'undefined') {
+          log('❌ FullWeatherEngine 未加载', 'error');
+          throw new Error('FullWeatherEngine 未加载');
+        }
+        log('✅ FullWeatherEngine 已加载', 'success');
+        
+        // 步骤2: 创建容器
+        log('步骤2: 创建测试容器...', 'info');
+        const container = document.getElementById('test-container');
+        if (!container) {
+          log('❌ 测试容器不存在', 'error');
+          throw new Error('测试容器不存在');
+        }
+        log('✅ 测试容器已找到', 'success');
+        
+        // 步骤3: 创建天气引擎实例
+        log('步骤3: 创建天气引擎实例...', 'info');
+        const weatherEngine = new FullWeatherEngine(container);
+        log('✅ 天气引擎实例创建成功', 'success');
+        
+        // 步骤4: 等待初始化完成
+        log('步骤4: 等待初始化完成...', 'info');
+        await weatherEngine.initializationPromise;
+        log('✅ 天气引擎初始化完成', 'success');
+        
+        // 步骤5: 检查引擎状态
+        log('步骤5: 检查引擎状态...', 'info');
+        const state = weatherEngine.getEngineState();
+        log(`引擎状态: ${JSON.stringify(state, null, 2)}`, 'info');
+        
+        // 步骤6: 测试基本功能
+        log('步骤6: 测试基本功能...', 'info');
+        
+        // 测试天气切换
+        weatherEngine.controlParams.weatherType = 'clear';
+        weatherEngine.updateWeatherType();
+        log('✅ 切换到晴天', 'success');
+        
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        weatherEngine.controlParams.weatherType = 'rain';
+        weatherEngine.updateWeatherType();
+        log('✅ 切换到雨天', 'success');
+        
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        weatherEngine.controlParams.weatherType = 'snow';
+        weatherEngine.updateWeatherType();
+        log('✅ 切换到雪天', 'success');
+        
+        log('🎉 所有测试通过！', 'success');
+        
+      } catch (error) {
+        log(`❌ 测试失败: ${error.message}`, 'error');
+        log(`错误堆栈: ${error.stack}`, 'error');
+        console.error('详细错误:', error);
+      }
+    }
+    
+    // 确保在所有资源加载完成后开始测试
+    window.addEventListener('load', () => {
+      log('页面加载完成，等待额外时间确保脚本加载...', 'info');
+      setTimeout(debugTest, 1000);
+    });
+  </script>
+  
+  <!-- 确保脚本按正确顺序加载 -->
+  <script src="../three.min.js"></script>
+  <script src="advanced-weather-renderer.js"></script>
+  <script src="full-weather-engine.js"></script>
+</body>
+</html>

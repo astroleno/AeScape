@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>天景 AeScape</title>
+  <style>
+    body {
+      width: 280px;
+      height: 400px;
+      margin: 0;
+      padding: 0;
+      font-family: 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', '微软雅黑', Arial, sans-serif;
+      background: linear-gradient(135deg, #ffffff, #f8f8f8);
+      color: #2c1810;
+      border: none;
+      outline: none;
+      overflow: hidden;
+    }
+    
+    .header {
+      background: linear-gradient(135deg, #87CEEB, #E0F7FA);
+      color: #2c1810;
+      padding: 20px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+    
+    .header::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: radial-gradient(circle, rgba(44, 24, 16, 0.03) 1px, transparent 1px);
+      background-size: 20px 20px;
+      animation: float 20s infinite linear;
+    }
+    
+    @keyframes float {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    .logo {
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 6px;
+      position: relative;
+      z-index: 1;
+      color: #2c1810;
+    }
+    
+    .subtitle {
+      font-size: 11px;
+      opacity: 0.7;
+      position: relative;
+      z-index: 1;
+      color: #4a3728;
+    }
+    
+    .content {
+      padding: 15px;
+      background: #ffffff;
+      height: 280px;
+      overflow-y: auto;
+    }
+    
+    .status-group {
+      background: linear-gradient(135deg, #ffffff, #fafafa);
+      border-radius: 12px;
+      padding: 12px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.06);
+      margin-bottom: 10px;
+      border: 1px solid rgba(44, 24, 16, 0.08);
+    }
+    
+    .status-item {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 8px;
+      font-size: 12px;
+    }
+    
+    .status-item:last-child {
+      margin-bottom: 0;
+    }
+    
+    .status-label {
+      color: #666;
+      font-weight: 500;
+    }
+    
+    .status-value {
+      color: #2c1810;
+      font-weight: 600;
+    }
+    
+    .control-group {
+      background: linear-gradient(135deg, #ffffff, #fafafa);
+      border-radius: 12px;
+      padding: 12px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.06);
+      margin-bottom: 10px;
+      border: 1px solid rgba(44, 24, 16, 0.08);
+    }
+    
+    .button {
+      width: 100%;
+      padding: 10px;
+      border: none;
+      border-radius: 8px;
+      background: linear-gradient(135deg, #87CEEB, #E0F7FA);
+      color: #2c1810;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      margin-bottom: 8px;
+    }
+    
+    .button:hover {
+      background: linear-gradient(135deg, #5DADE2, #AED6F1);
+      transform: translateY(-1px);
+    }
+    
+    .button:active {
+      transform: translateY(0);
+    }
+    
+    .location-input {
+      width: 100%;
+      max-width: 240px;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      font-size: 12px;
+      font-family: inherit;
+      background: #fff;
+      color: #2c1810;
+      margin-bottom: 8px;
+      box-sizing: border-box;
+    }
+    
+    .location-input:focus {
+      outline: none;
+      border-color: #87CEEB;
+      box-shadow: 0 0 0 2px rgba(135, 206, 235, 0.2);
+    }
+    
+    .location-input::placeholder {
+      color: #999;
+    }
+    
+    .footer {
+      text-align: center;
+      padding: 10px;
+      font-size: 11px;
+      color: #888;
+      border-top: 1px solid rgba(44, 24, 16, 0.1);
+      background: linear-gradient(135deg, #fafafa, #f5f5f5);
+    }
+    
+    .loading {
+      opacity: 0.6;
+      pointer-events: none;
+    }
+    
+    .error {
+      color: #e74c3c;
+      font-size: 11px;
+      margin-top: 4px;
+    }
+    
+    .success {
+      color: #27ae60;
+      font-size: 11px;
+      margin-top: 4px;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="logo">🌤️ 天景 AeScape</div>
+    <div class="subtitle">让每一次打开新标签页都成为一次与自然的邂逅</div>
+  </div>
+
+  <div class="content">
+    <div class="status-group">
+      <div class="status-item">
+        <span class="status-label">状态:</span>
+        <span class="status-value" id="status-text">运行中</span>
+      </div>
+      <div class="status-item">
+        <span class="status-label">位置:</span>
+        <span class="status-value" id="location-text">北京</span>
+      </div>
+      <div class="status-item">
+        <span class="status-label">天气:</span>
+        <span class="status-value" id="weather-text">--</span>
+      </div>
+      <div class="status-item">
+        <span class="status-label">温度:</span>
+        <span class="status-value" id="temp-text">--°</span>
+      </div>
+      <div class="status-item">
+        <span class="status-label">更新:</span>
+        <span class="status-value" id="update-text">--</span>
+      </div>
+    </div>
+
+    <div class="control-group">
+      <button class="button" id="refresh-btn">🔄 刷新天气</button>
+    </div>
+
+    <div class="control-group">
+      <div class="status-label" style="margin-bottom: 8px;">手动设置位置:</div>
+      <input 
+        type="text" 
+        class="location-input" 
+        id="location-input" 
+        placeholder="输入城市名称 (例: 北京、上海、广州)"
+      />
+      <button class="button" id="set-location-btn">📍 设置位置</button>
+      <div id="location-message"></div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <div>版本 1.0.0</div>
+    <div>让数字生活多一份宁静与美感</div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

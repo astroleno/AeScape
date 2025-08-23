@@ -1,198 +1,129 @@
-# 天景 AeScape - 安装和开发指南
+# 天景 AeScape - 安装指南
 
-## 快速开始
+## 快速安装
 
-### 1. 安装依赖
-```bash
-npm install
-```
+### 方法一：直接下载安装
 
-### 2. 开发模式
-```bash
-npm run dev
-```
+1. **下载项目**
+   ```bash
+   git clone https://github.com/your-username/AeScape.git
+   ```
+   或下载ZIP文件并解压
 
-### 3. 构建生产版本
-```bash
-npm run build
-```
+2. **安装扩展**
+   - 打开Chrome浏览器
+   - 地址栏输入：`chrome://extensions/`
+   - 开启右上角的"开发者模式"
+   - 点击"加载已解压的扩展程序"
+   - 选择 `AeScape` 文件夹
 
-### 4. 代码检查
-```bash
-npm run lint
-npm run format
-```
+3. **配置API Key**
+   - 访问 [OpenWeatherMap](https://openweathermap.org/api)
+   - 注册免费账户
+   - 获取API Key
+   - 打开新标签页，点击设置按钮
+   - 输入API Key并保存
 
-## Chrome 扩展安装
+### 方法二：Chrome Web Store（即将上线）
 
-### 方法一：开发者模式安装
+直接从Chrome应用商店安装（开发中）
 
-1. 打开 Chrome 浏览器
-2. 访问 `chrome://extensions/`
-3. 开启右上角的 "开发者模式"
-4. 点击 "加载已解压的扩展程序"
-5. 选择项目的 `dist` 文件夹
+## 详细配置
 
-### 方法二：本地开发测试
+### API Key获取步骤
 
-1. 运行 `npm run dev`
-2. 在 Chrome 扩展页面加载 `src` 文件夹
-3. 新建标签页即可看到效果
+1. **注册OpenWeatherMap账户**
+   - 访问 https://openweathermap.org/api
+   - 点击"Sign Up"注册
+   - 验证邮箱
 
-## 项目结构
+2. **获取API Key**
+   - 登录后进入 https://home.openweathermap.org/api_keys
+   - 复制默认的API Key
+   - 或创建新的API Key
 
-```
-src/
-├── js/
-│   ├── weather/           # Three.js 天气渲染引擎
-│   │   ├── engine.js      # 主渲染引擎
-│   │   └── ...            # 其他渲染模块
-│   ├── data/              # 数据获取模块
-│   │   ├── sun.js         # 太阳位置计算
-│   │   └── weather.js     # 天气数据获取
-│   ├── background.js      # Service Worker 后台服务
-│   ├── content.js         # 悬浮球注入脚本
-│   └── ui.js              # UI 交互逻辑
-├── css/
-│   └── floating-ball.css  # 悬浮球样式
-├── index.html             # 新标签页
-├── floating-ball.html     # 悬浮球页面
-└── popup.html            # 扩展弹出页面
-```
+3. **在扩展中配置**
+   - 打开新标签页
+   - 点击右上角设置图标
+   - 在"API配置"中粘贴API Key
+   - 点击"保存API Key"
 
-## 功能特性
+### 位置设置
 
-### 核心功能
-- ✅ 实时天气渲染（Three.js）
-- ✅ 真实太阳位置计算
-- ✅ 空气质量显示
-- ✅ 跨页面悬浮球
-- ✅ 智能缓存机制
+#### 方法一：自动获取位置
+- 点击设置中的"自动获取位置"
+- 允许浏览器获取位置权限
+- 系统自动设置当前位置
 
-### 天气效果
-- ✅ 晴天、多云、雨天、雪天
-- ✅ 雾天、雷暴
-- ✅ 动态光照
-- ✅ 粒子系统
+#### 方法二：手动搜索城市
+- 在设置的"位置设置"中输入城市名
+- 支持中英文城市名
+- 点击"设置位置"确认
+
+## 故障排除
+
+### 常见问题
+
+**Q: 天气数据无法显示**
+- 检查是否已配置有效的API Key
+- 确认网络连接正常
+- 验证API Key是否激活（新注册需要几分钟）
+
+**Q: 位置显示错误**
+- 重新设置位置
+- 清除浏览器位置权限后重新授权
+- 手动搜索正确的城市名
+
+**Q: 新标签页没有替换**
+- 确认扩展已正确安装
+- 检查扩展是否已启用
+- 重启浏览器
+
+**Q: 悬浮球不显示**
+- 检查是否在chrome://等系统页面（不支持）
+- 刷新页面
+- 检查扩展权限
+
+### 调试模式
+
+1. 打开开发者工具（F12）
+2. 查看Console标签
+3. 查找以"AeScape"开头的日志信息
+4. 根据错误信息进行排查
+
+### 重置扩展
+
+如果遇到严重问题，可以重置扩展：
+
+1. 进入 `chrome://extensions/`
+2. 找到"天景 AeScape"
+3. 点击"详细信息"
+4. 点击"扩展程序选项"
+5. 重新配置API Key和位置
+
+## 使用建议
+
+### 最佳体验设置
+
+- **启用所有权限**：确保位置和存储权限正常
+- **定期更新**：关注项目更新获取最新功能
+- **个性化设置**：根据喜好调整动画和效果
 
 ### 性能优化
-- ✅ 后台标签页自动暂停
-- ✅ 动态质量调整
-- ✅ 智能缓存策略
-- ✅ GPU 加速渲染
 
-## 技术栈
+- 扩展会自动优化API调用频率
+- 数据会本地缓存减少网络请求
+- 页面隐藏时自动暂停不必要的更新
 
-- **前端**: 原生 JavaScript (ES6+)
-- **3D渲染**: Three.js
-- **数据源**: Open-Meteo (免费)
-- **太阳计算**: suncalc
-- **构建工具**: Vite
-- **代码规范**: ESLint + Prettier
+## 获取帮助
 
-## API 文档
+遇到问题？以下方式获取帮助：
 
-### 天气状态接口
-```javascript
-interface WeatherState {
-  location: {
-    lat: number;
-    lon: number;
-    name: string;
-    timezone: string;
-  };
-  sun: {
-    altitudeDeg: number;
-    azimuthDeg: number;
-  };
-  weather: {
-    code: 'clear' | 'cloudy' | 'rain' | 'snow' | 'fog' | 'thunderstorm';
-    precipIntensity: number;
-    precipType: 'rain' | 'snow';
-    visibilityKm: number;
-    windSpeedMps: number;
-    windDirDeg: number;
-    thunderProb: number;
-  };
-  air: {
-    aqi: number;
-    pm25: number;
-    pm10: number;
-  };
-  env: {
-    isNight: boolean;
-    temperature: number;
-  };
-}
-```
-
-### 消息接口
-```javascript
-// 获取当前天气
-chrome.runtime.sendMessage({
-  type: 'weather.getCurrent'
-})
-
-// 设置位置
-chrome.runtime.sendMessage({
-  type: 'location.set',
-  location: { lat: 39.9042, lon: 116.4074, name: '北京' }
-})
-
-// 强制更新天气数据
-chrome.runtime.sendMessage({
-  type: 'weather.forceUpdate'
-})
-```
-
-## 常见问题
-
-### Q: 为什么天气数据不准确？
-A: Open-Meteo 是免费的天气数据源，精度可能不如付费服务。可以在设置中手动调整位置。
-
-### Q: 悬浮球不显示怎么办？
-A: 检查扩展权限是否正确授予，确保在扩展设置中启用了"在所有网站上运行"。
-
-### Q: 性能太差怎么办？
-A: 在设置中降低质量等级，或关闭复杂的天气效果。
-
-### Q: 如何调试？
-A: 打开 Chrome 开发者工具，查看 Console 和 Network 面板的错误信息。
-
-## 开发指南
-
-### 添加新的天气效果
-1. 在 `src/js/weather/` 目录下创建新的效果模块
-2. 在 `engine.js` 中注册新的效果
-3. 更新 `applyWeatherState` 方法
-
-### 修改数据源
-1. 在 `src/js/data/weather.js` 中修改 API 调用
-2. 更新数据转换方法
-3. 测试新的数据格式
-
-### 自定义样式
-1. 修改 `src/css/` 目录下的 CSS 文件
-2. 更新 HTML 模板
-3. 测试不同屏幕尺寸
-
-## 贡献指南
-
-1. Fork 项目
-2. 创建功能分支
-3. 提交更改
-4. 推送到分支
-5. 创建 Pull Request
-
-## 许可证
-
-MIT License
-
-## 联系方式
-
-- GitHub Issues: [提交问题](https://github.com/your-repo/aescape/issues)
-- 邮箱: your-email@example.com
+1. **查看文档**：阅读完整的README.md
+2. **检查日志**：开发者工具中的Console信息
+3. **提交Issue**：在GitHub仓库提交问题报告
+4. **社区讨论**：参与项目讨论
 
 ---
 
-**最后更新**: 2025-08-22
+**安装成功后，享受您的天景之旅！**

@@ -1,0 +1,673 @@
+// scripts/WeatherRenderer.js
+// 核心 Three.js 渲染器（“天气即 UI”）+ 参数模版列表
+// 作用：全屏天空 + 程序化云 + 雨/雪 + 闪电脉冲 + 雾/曝光
+// 用法：
+//   import WeatherRenderer, { WEATHER_TEMPLATES } from './scripts/WeatherRenderer.js';
+//   const r = new WeatherRenderer(); await r.init(container, caps);
+//   r.applyTemplate('clear-day'); // 或根据时间/数据选择模版
+//   // 每帧 r.render(state) 也可（此版本自带内部主循环）
+//
+// 说明：
+//   - 仅依赖 three（ESM）；
+//   - 云/天空为自写 GLSL（近似物理），无需 Sky.js；
+//   - 模版字段见 WEATHER_TEMPLATES；
+//   - 可与你的“引擎层”联动（如果需要），也可单独运行。
+
+import * as THREE from 'three';
+
+// =============== 工具与常量 ===============
+const DEG2RAD = Math.PI / 180;
+
+function clamp(x, a, b){ return Math.max(a, Math.min(b, x)); }
+function lerp(a,b,t){ return a + (b-a)*t; }
+function hslToRgb(h,s,l){
+  // 0..1
+  const hue2rgb=(p,q,t)=>{ if(t<0)t+=1; if(t>1)t-=1; if(t<1/6)return p+(q-p)*6*t; if(t<1/2)return q; if(t<2/3)return p+(q-p)*(2/3-t)*6; return p; };
+  const q = l < .5 ? l*(1+s) : l+s-l*s, p = 2*l-q;
+  return [hue2rgb(p,q,h+1/3), hue2rgb(p,q,h), hue2rgb(p,q,h-1/3)];
+}
+function colorFromHsl(h,s,l){ const [r,g,b]=hslToRgb(h,s,l); return new THREE.Color(r,g,b); }
+function vecFromDeg(deg){ const r = deg*DEG2RAD; return new THREE.Vector2(Math.cos(r), Math.sin(r)); } // x=cos y=sin（屏幕坐标右/下）
+
+// =============== 天气参数模版（可按需扩展） ===============
+// 说明：所有值为“艺术指导向”的参数，范围备注在注释中。
+export const WEATHER_TEMPLATES = {
+  'clear-day': {
+    label: '晴天（日）',
+    exposure: 1.05,                 // 场景曝光
+    fogDensity: 0.002,              // 基础雾
+    sky: {                          // 渐近似物理天空（越接近 Preetham/Hosek）
+      topColor:  colorFromHsl(0.58, 0.45, 0.55), // 天顶偏蓝青
+      horizonColor: colorFromHsl(0.58, 0.35, 0.75),
+      bottomColor: colorFromHsl(0.10, 0.20, 0.98), // 近地偏暖
+      mie: 0.03,     // 0..0.1   前向散射
+      rayleigh: 1.5, // 0.5..3.0 瑞利散射强度
+    },
+    sun: { elevDeg: 45, azimDeg: 120, diskSize: 0.035, glow: 1.2 }, // 太阳圆盘与光晕
+    clouds: { density: 0.25, coverage: 0.25, speed: 0.06, scale: 1.8, detail: 0.6, aniso: 0.2, color: new THREE.Color(1,1,1) },
+    wind: { speed: 0.6, dirDeg: 100 },
+    precipitation: { type: 'none', intensity: 0 }, // 'none'|'rain'|'snow'
+    lightning: { probability: 0, brightness: 0.0, decay: 0.25 }
+  },
+
+  'cloudy-day': {
+    label: '多云（日）',
+    exposure: 1.0,
+    fogDensity: 0.0026,
+    sky: {
+      topColor:  colorFromHsl(0.58, 0.30, 0.58),
+      horizonColor: colorFromHsl(0.58, 0.25, 0.72),
+      bottomColor: colorFromHsl(0.10, 0.12, 0.92),
+      mie: 0.05,
+      rayleigh: 1.0,
+    },
+    sun: { elevDeg: 38, azimDeg: 140, diskSize: 0.03, glow: 0.9 },
+    clouds: { density: 0.55, coverage: 0.55, speed: 0.08, scale: 1.6, detail: 0.9, aniso: 0.35, color: new THREE.Color(0.95,0.97,1.0) },
+    wind: { speed: 0.8, dirDeg: 120 },
+    precipitation: { type: 'none', intensity: 0 },
+    lightning: { probability: 0, brightness: 0.0, decay: 0.25 }
+  },
+
+  'overcast': {
+    label: '阴天',
+    exposure: 0.95,
+    fogDensity: 0.0032,
+    sky: {
+      topColor:  new THREE.Color(0.72,0.75,0.82),
+      horizonColor: new THREE.Color(0.76,0.78,0.84),
+      bottomColor: new THREE.Color(0.82,0.84,0.88),
+      mie: 0.06,
+      rayleigh: 0.8,
+    },
+    sun: { elevDeg: 28, azimDeg: 160, diskSize: 0.025, glow: 0.6 },
+    clouds: { density: 0.85, coverage: 0.85, speed: 0.07, scale: 1.4, detail: 1.2, aniso: 0.45, color: new THREE.Color(0.92,0.94,0.98) },
+    wind: { speed: 0.9, dirDeg: 140 },
+    precipitation: { type: 'none', intensity: 0 },
+    lightning: { probability: 0, brightness: 0.0, decay: 0.25 }
+  },
+
+  'rain': {
+    label: '小到中雨',
+    exposure: 0.92,
+    fogDensity: 0.004,
+    sky: {
+      topColor:  new THREE.Color(0.58,0.64,0.74),
+      horizonColor: new THREE.Color(0.66,0.70,0.78),
+      bottomColor: new THREE.Color(0.72,0.76,0.82),
+      mie: 0.07, rayleigh: 0.9
+    },
+    sun: { elevDeg: 22, azimDeg: 160, diskSize: 0.022, glow: 0.45 },
+    clouds: { density: 0.92, coverage: 0.9, speed: 0.11, scale: 1.3, detail: 1.4, aniso: 0.55, color: new THREE.Color(0.90,0.93,0.98) },
+    wind: { speed: 1.0, dirDeg: 160 },
+    precipitation: { type: 'rain', intensity: 0.65 }, // 0..1
+    lightning: { probability: 0.02, brightness: 0.75, decay: 0.22 }
+  },
+
+  'storm': {
+    label: '雷暴',
+    exposure: 0.9,
+    fogDensity: 0.005,
+    sky: {
+      topColor:  new THREE.Color(0.45,0.50,0.60),
+      horizonColor: new THREE.Color(0.52,0.56,0.66),
+      bottomColor: new THREE.Color(0.60,0.63,0.70),
+      mie: 0.09, rayleigh: 0.7
+    },
+    sun: { elevDeg: 20, azimDeg: 180, diskSize: 0.02, glow: 0.3 },
+    clouds: { density: 0.97, coverage: 0.97, speed: 0.14, scale: 1.15, detail: 1.6, aniso: 0.62, color: new THREE.Color(0.88,0.90,0.95) },
+    wind: { speed: 1.3, dirDeg: 180 },
+    precipitation: { type: 'rain', intensity: 0.95 },
+    lightning: { probability: 0.25, brightness: 1.2, decay: 0.2 } // 每秒触发概率
+  },
+
+  'snow': {
+    label: '降雪',
+    exposure: 0.98,
+    fogDensity: 0.0045,
+    sky: {
+      topColor:  new THREE.Color(0.80,0.85,0.94),
+      horizonColor: new THREE.Color(0.86,0.90,0.96),
+      bottomColor: new THREE.Color(0.92,0.94,0.98),
+      mie: 0.05, rayleigh: 0.9
+    },
+    sun: { elevDeg: 24, azimDeg: 160, diskSize: 0.02, glow: 0.5 },
+    clouds: { density: 0.88, coverage: 0.9, speed: 0.06, scale: 1.2, detail: 1.2, aniso: 0.4, color: new THREE.Color(0.96,0.98,1.0) },
+    wind: { speed: 0.5, dirDeg: 140 },
+    precipitation: { type: 'snow', intensity: 0.7 },
+    lightning: { probability: 0, brightness: 0.0, decay: 0.25 }
+  },
+
+  'golden-hour': {
+    label: '黄昏',
+    exposure: 0.95,
+    fogDensity: 0.0035,
+    sky: {
+      topColor:  colorFromHsl(0.07, 0.35, 0.65),
+      horizonColor: colorFromHsl(0.05, 0.45, 0.75),
+      bottomColor: colorFromHsl(0.03, 0.55, 0.85),
+      mie: 0.06, rayleigh: 1.6
+    },
+    sun: { elevDeg: 8, azimDeg: 250, diskSize: 0.055, glow: 1.6 },
+    clouds: { density: 0.45, coverage: 0.5, speed: 0.07, scale: 1.7, detail: 1.0, aniso: 0.35, color: new THREE.Color(1.0,0.95,0.9) },
+    wind: { speed: 0.6, dirDeg: 220 },
+    precipitation: { type: 'none', intensity: 0 },
+    lightning: { probability: 0, brightness: 0.0, decay: 0.25 }
+  },
+
+  'night-clear': {
+    label: '夜晚（晴）',
+    exposure: 0.85,
+    fogDensity: 0.0038,
+    sky: {
+      topColor:  new THREE.Color(0.06,0.08,0.14),
+      horizonColor: new THREE.Color(0.10,0.12,0.18),
+      bottomColor: new THREE.Color(0.12,0.14,0.20),
+      mie: 0.02, rayleigh: 0.8
+    },
+    sun: { elevDeg: -20, azimDeg: 300, diskSize: 0.0, glow: 0.0 }, // 夜无太阳盘
+    clouds: { density: 0.15, coverage: 0.2, speed: 0.05, scale: 1.9, detail: 0.6, aniso: 0.2, color: new THREE.Color(0.9,0.95,1.0) },
+    wind: { speed: 0.4, dirDeg: 320 },
+    precipitation: { type: 'none', intensity: 0 },
+    lightning: { probability: 0, brightness: 0.0, decay: 0.25 }
+  },
+
+  'night-storm': {
+    label: '夜雷暴',
+    exposure: 0.8,
+    fogDensity: 0.0052,
+    sky: {
+      topColor:  new THREE.Color(0.04,0.06,0.10),
+      horizonColor: new THREE.Color(0.08,0.10,0.14),
+      bottomColor: new THREE.Color(0.10,0.12,0.16),
+      mie: 0.07, rayleigh: 0.5
+    },
+    sun: { elevDeg: -15, azimDeg: 20, diskSize: 0.0, glow: 0.0 },
+    clouds: { density: 0.98, coverage: 0.98, speed: 0.12, scale: 1.2, detail: 1.6, aniso: 0.65, color: new THREE.Color(0.85,0.90,0.98) },
+    wind: { speed: 1.2, dirDeg: 30 },
+    precipitation: { type: 'rain', intensity: 0.9 },
+    lightning: { probability: 0.35, brightness: 1.3, decay: 0.22 }
+  }
+};
+
+// =============== Sky+Cloud 全屏着色器（屏幕空间） ===============
+const SkyCloudShader = {
+  uniforms: {
+    uTime: { value: 0 },
+    uExposure: { value: 1.0 },
+    uFogDensity: { value: 0.002 },
+
+    uTopColor: { value: new THREE.Color(0.5,0.7,1.0) },
+    uHorizonColor: { value: new THREE.Color(0.7,0.8,1.0) },
+    uBottomColor: { value: new THREE.Color(0.9,0.9,1.0) },
+    uRayleigh: { value: 1.5 },
+    uMie: { value: 0.03 },
+
+    uSunDir: { value: new THREE.Vector3(0,1,0) },
+    uSunDiskSize: { value: 0.04 },
+    uSunGlow: { value: 1.2 },
+
+    uCloudDensity: { value: 0.3 },
+    uCloudCoverage: { value: 0.4 },
+    uCloudSpeed: { value: 0.08 },
+    uCloudScale: { value: 1.5 },
+    uCloudDetail: { value: 1.0 },
+    uCloudAniso: { value: 0.3 },
+    uCloudColor: { value: new THREE.Color(1,1,1) },
+    uWindDir: { value: new THREE.Vector2(1,0) },
+
+    uLightning: { value: 0.0 } // 0..N，叠加闪电全屏提亮
+  },
+  vertexShader: /* glsl */`
+    varying vec2 vUv;
+    void main(){
+      vUv = uv;
+      gl_Position = vec4(position.xy, 0.0, 1.0);
+    }
+  `,
+  fragmentShader: /* glsl */`
+    precision highp float;
+
+    varying vec2 vUv;
+
+    uniform float uTime, uExposure, uFogDensity;
+    uniform vec3 uTopColor, uHorizonColor, uBottomColor;
+    uniform float uRayleigh, uMie;
+
+    uniform vec3 uSunDir;
+    uniform float uSunDiskSize, uSunGlow;
+
+    uniform float uCloudDensity, uCloudCoverage, uCloudSpeed, uCloudScale, uCloudDetail, uCloudAniso;
+    uniform vec3  uCloudColor;
+    uniform vec2  uWindDir;
+
+    uniform float uLightning;
+
+    // ====== 2D Hash/Noise/FBM（轻量） ======
+    float hash12(vec2 p){
+      vec3 p3 = fract(vec3(p.xyx) * .1031);
+      p3 += dot(p3, p3.yzx + 33.33);
+      return fract((p3.x + p3.y) * p3.z);
+    }
+
+    float noise(vec2 p){
+      vec2 i = floor(p);
+      vec2 f = fract(p);
+      float a = hash12(i + vec2(0.0,0.0));
+      float b = hash12(i + vec2(1.0,0.0));
+      float c = hash12(i + vec2(0.0,1.0));
+      float d = hash12(i + vec2(1.0,1.0));
+      vec2 u = f*f*(3.0-2.0*f);
+      return mix(a, b, u.x) + (c - a)*u.y*(1.0 - u.x) + (d - b)*u.x*u.y;
+    }
+
+    float fbm(vec2 p){
+      float v = 0.0;
+      float a = 0.55;
+      // 4 层即可（性能/质量平衡）
+      v += noise(p); p *= 2.02;
+      v += noise(p)*a; a *= 0.55; p *= 2.02;
+      v += noise(p)*a; a *= 0.55; p *= 2.02;
+      v += noise(p)*a;
+      return v / (1.0 + 0.55 + 0.55*0.55 + 0.55*0.55*0.55);
+    }
+
+    // 屏幕到“天空”方向的近似映射（相机朝 +Z，Y 向上）
+    vec3 screenDir(vec2 uv){
+      vec2 ndc = (uv * 2.0 - 1.0);
+      // 轻微弯曲让顶部更靠近天顶
+      float y = clamp(ndc.y, -1.0, 1.0);
+      float k = mix(0.2, 1.0, (y+1.0)*0.5);
+      vec3 dir = normalize(vec3(ndc.x*k, y, 1.5));
+      return dir;
+    }
+
+    // 近似物理天空：根据视线方向与太阳方向、Rayleigh/Mie 做颜色插值（简化）
+    vec3 skyColor(vec3 rd){
+      float mu = max(dot(normalize(rd), normalize(uSunDir)), 0.0); // 与太阳夹角的余弦
+      float ray = pow(max(rd.y*0.5+0.5, 0.0), uRayleigh);         // 越靠天顶越蓝
+      float mie = pow(mu, 20.0) * uMie * 25.0;                    // 前向散射一坨亮
+      vec3 base = mix(uBottomColor, mix(uHorizonColor, uTopColor, ray), clamp(rd.y*0.5+0.5,0.0,1.0));
+      base += mie * vec3(1.0, 0.9, 0.75);
+      return base;
+    }
+
+    // 太阳盘（屏幕空间）：把太阳方向投影到屏幕，做径向渐变
+    float sunDisk(vec3 rd){
+      vec3 sd = normalize(uSunDir);
+      // 屏幕方向近似：取 rd 与 sd 的夹角
+      float mu = dot(rd, sd);
+      // 盘径越小越锐
+      float disk = smoothstep(cos(uSunDiskSize*1.2), cos(uSunDiskSize), mu);
+      return disk;
+    }
+
+    void main(){
+      vec3 rd = screenDir(vUv);
+
+      // 基础天空
+      vec3 col = skyColor(rd);
+
+      // 太阳盘与光晕
+      float disk = sunDisk(rd);
+      float glow = pow(max(dot(normalize(rd), normalize(uSunDir)), 0.0), 8.0);
+      col += disk * uSunGlow * vec3(1.0,0.95,0.88);
+      col += glow * 0.25 * vec3(1.0,0.9,0.8);
+
+      // 云（屏幕空间程序噪声）
+      // 按风向/速度滚动两个层次
+      vec2 wind = normalize(uWindDir);
+      float t = uTime * uCloudSpeed;
+      vec2 p1 = (vUv*2.0 - 0.5) * (1.2 * uCloudScale);
+      vec2 p2 = (vUv*3.0 + 0.3) * (2.0 * uCloudScale);
+
+      p1 += wind * t * 0.8;
+      p2 += wind * t * 1.6;
+
+      float n1 = fbm(p1 * (1.0 + uCloudAniso * 0.5));
+      float n2 = fbm(p2 * (1.5 + uCloudDetail * 0.8));
+
+      // coverage: 提升阈值可减少云洞；density: 云的可见度
+      float clouds = smoothstep(0.5 + (1.0 - uCloudCoverage)*0.45, 1.0, (n1*0.65 + n2*0.35));
+      clouds *= uCloudDensity;
+
+      // 云对天空进行柔和混合，云边缘偏亮（与太阳角度相关）
+      float rim = pow(max(dot(normalize(uSunDir), vec3(0.0,1.0,0.0)),0.0), 2.0);
+      vec3 cloudCol = mix(uCloudColor*0.9, uCloudColor*1.15, rim);
+      col = mix(col, cloudCol, clamp(clouds, 0.0, 1.0));
+
+      // 雾（屏幕空间：靠下更浓）
+      float fog = exp(-uFogDensity * (1.0 + (1.0 - clamp(vUv.y,0.0,1.0))*1.5));
+      col = mix(vec3(0.92,0.94,0.98), col, fog);
+
+      // 闪电全屏提亮
+      if(uLightning > 0.001){
+        col += uLightning * vec3(1.0, 0.97, 0.9);
+      }
+
+      // 曝光（简单 HDR 映射）
+      col *= uExposure;
+      col = col / (col + vec3(1.0)); // Reinhard
+      gl_FragColor = vec4(col, 1.0);
+    }
+  `
+};
+
+// =============== 降水系统（Points） ===============
+class PrecipitationSystem {
+  constructor(type, intensity, windVec){
+    this.type = type;  // 'none'|'rain'|'snow'
+    this.intensity = intensity;
+    this.wind = windVec.clone(); // THREE.Vector2
+    this.group = new THREE.Group();
+    this.bounds = new THREE.Vector2(1,1); // 归一化屏幕空间映射
+    this._init();
+  }
+
+  _init(){
+    if(this.type==='none' || this.intensity<=0){ return; }
+
+    const countBase = (this.type==='rain') ? 2000 : 1200;
+    const count = Math.floor(countBase * clamp(this.intensity, 0.05, 1));
+
+    const geo = new THREE.BufferGeometry();
+    const positions = new Float32Array(count*3);
+    const speeds = new Float32Array(count);
+    const phases = new Float32Array(count);
+
+    for(let i=0;i<count;i++){
+      positions[i*3+0] = (Math.random()*2-1) * 1.2; // x in NDC-ish
+      positions[i*3+1] = (Math.random()*2-1) * 1.2; // y
+      positions[i*3+2] = 0;
+      speeds[i] = (this.type==='rain') ? (1.8 + Math.random()*1.4) : (0.25 + Math.random()*0.35);
+      phases[i] = Math.random()*Math.PI*2;
+    }
+
+    geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    geo.setAttribute('aSpeed', new THREE.BufferAttribute(speeds, 1));
+    geo.setAttribute('aPhase', new THREE.BufferAttribute(phases, 1));
+
+    const mat = new THREE.ShaderMaterial({
+      transparent: true,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+      uniforms: {
+        uTime: { value: 0 },
+        uType: { value: (this.type==='rain') ? 1.0 : 2.0 },
+        uWind: { value: new THREE.Vector2(this.wind.x, this.wind.y) },
+      },
+      vertexShader: /* glsl */`
+        attribute float aSpeed;
+        attribute float aPhase;
+        varying float vAlpha;
+        uniform float uTime;
+        uniform float uType; // 1=rain,2=snow
+        uniform vec2 uWind;
+
+        void main(){
+          vec3 p = position;
+
+          if(uType < 1.5){
+            // 雨：直线+风偏
+            p.x += uWind.x * uTime * 0.6;
+            p.y -= (aSpeed * uTime) * 2.0;
+            // 回到顶部
+            p.y = mod(p.y + 1.2, 2.4) - 1.2;
+            p.x = mod(p.x + 1.2, 2.4) - 1.2;
+            vAlpha = 0.35 + aSpeed*0.12;
+          }else{
+            // 雪：缓慢+轻微横摆
+            float sway = sin(aPhase + uTime * (0.6 + aSpeed*0.2)) * 0.15;
+            p.x += sway + uWind.x * uTime * 0.15;
+            p.y -= (aSpeed * uTime) * 0.5;
+            p.y = mod(p.y + 1.2, 2.4) - 1.2;
+            p.x = mod(p.x + 1.2, 2.4) - 1.2;
+            vAlpha = 0.6;
+          }
+
+          gl_Position = vec4(p, 1.0);
+          // 点大小（屏幕像素）
+          gl_PointSize = (uType < 1.5) ? 2.0 + aSpeed*0.6 : 2.5 + aSpeed*2.0;
+        }
+      `,
+      fragmentShader: /* glsl */`
+        precision mediump float;
+        varying float vAlpha;
+        uniform float uType;
+        void main(){
+          // 圆点/椭圆核
+          vec2 uv = gl_PointCoord - 0.5;
+          float d = length(uv);
+          float mask = smoothstep(0.5, 0.0, d);
+          vec3 col = (uType < 1.5) ? vec3(0.7,0.85,1.0) : vec3(0.95,0.98,1.0);
+          gl_FragColor = vec4(col, mask * vAlpha);
+        }
+      `
+    });
+
+    const pts = new THREE.Points(geo, mat);
+    this.group.add(pts);
+    this.points = pts;
+  }
+
+  update(dt){
+    if(!this.points) return;
+    this.points.material.uniforms.uTime.value += dt;
+  }
+
+  dispose(){
+    if(this.points){
+      this.points.geometry.dispose();
+      this.points.material.dispose();
+      this.group.clear();
+      this.points = null;
+    }
+  }
+}
+
+// =============== 闪电控制（全屏脉冲） ===============
+class LightningController {
+  constructor(){
+    this.energy = 0;    // 0..N
+    this.decay = 0.2;   // s
+    this.perSec = 0;    // 概率
+    this.brightness = 1.0;
+    this._t = 0;
+  }
+  configure(probability, brightness, decay){
+    this.perSec = probability || 0;
+    this.brightness = brightness || 1.0;
+    this.decay = decay || 0.2;
+  }
+  update(dt){
+    // 随机触发
+    if(this.perSec > 0){
+      const p = 1.0 - Math.pow(1.0 - this.perSec, dt); // 泊松近似
+      if(Math.random() < p){
+        this.energy = Math.max(this.energy, this.brightness);
+      }
+    }
+    // 衰减
+    if(this.energy > 0){
+      const k = Math.pow(0.1, dt / this.decay);
+      this.energy *= k;
+      if(this.energy < 0.01) this.energy = 0;
+    }
+    return this.energy;
+  }
+}
+
+// =============== 主渲染器 ===============
+export default class WeatherRenderer {
+  constructor(){
+    this.container = null;
+    this.renderer = null;
+    this.scene = null;
+    this.camera = null;
+    this.screenMesh = null;
+
+    this.precip = null;
+    this.lightning = new LightningController();
+
+    this._caps = null;
+    this._clock = new THREE.Clock();
+    this._raf = 0;
+
+    this._currentKey = 'clear-day';
+  }
+
+  async init(container, caps){
+    this.container = container;
+    this._caps = caps || { dpr: Math.min(window.devicePixelRatio||1, 2) };
+
+    // Renderer
+    this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' });
+    this.renderer.setPixelRatio(this._caps.dpr || 1);
+    this.renderer.setSize(container.clientWidth, container.clientHeight, false);
+    this.renderer.outputColorSpace = THREE.SRGBColorSpace;
+    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    this.renderer.toneMappingExposure = 1.0;
+    container.appendChild(this.renderer.domElement);
+
+    // Scene + Camera（屏幕空间正交 + 全屏四边形）
+    this.scene = new THREE.Scene();
+    this.camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+
+    // 全屏 Shader Quad
+    const quadGeo = new THREE.PlaneGeometry(2,2);
+    const quadMat = new THREE.ShaderMaterial({
+      uniforms: THREE.UniformsUtils.clone(SkyCloudShader.uniforms),
+      vertexShader: SkyCloudShader.vertexShader,
+      fragmentShader: SkyCloudShader.fragmentShader
+    });
+    this.screenMesh = new THREE.Mesh(quadGeo, quadMat);
+    this.scene.add(this.screenMesh);
+
+    // 初始模版（根据时间段挑一个）
+    const h = new Date().getHours();
+    const key = (h >= 18 || h < 6) ? 'night-clear' : 'clear-day';
+    this.applyTemplate(key);
+
+    // 监听尺寸
+    const onResize = () => this.resize(window.innerWidth, window.innerHeight);
+    this._onResize = onResize;
+    window.addEventListener('resize', onResize);
+
+    // 启动主循环
+    this._clock.start();
+    const loop = () => {
+      this._raf = requestAnimationFrame(loop);
+      this._frame();
+    };
+    loop();
+
+    return this;
+  }
+
+  // 提供给外部：切换场景模版
+  applyTemplate(key){
+    if(!WEATHER_TEMPLATES[key]) key = 'clear-day';
+    this._currentKey = key;
+    const t = WEATHER_TEMPLATES[key];
+
+    // 曝光/雾
+    this.renderer.toneMappingExposure = t.exposure;
+    this.screenMesh.material.uniforms.uExposure.value = t.exposure;
+    this.screenMesh.material.uniforms.uFogDensity.value = t.fogDensity;
+
+    // 天空
+    this.screenMesh.material.uniforms.uTopColor.value.copy(t.sky.topColor);
+    this.screenMesh.material.uniforms.uHorizonColor.value.copy(t.sky.horizonColor);
+    this.screenMesh.material.uniforms.uBottomColor.value.copy(t.sky.bottomColor);
+    this.screenMesh.material.uniforms.uRayleigh.value = t.sky.rayleigh;
+    this.screenMesh.material.uniforms.uMie.value = t.sky.mie;
+
+    // 太阳方向（屏幕空间近似：世界方向固定相机朝 +Z）
+    const elev = t.sun.elevDeg * DEG2RAD;
+    const azim = t.sun.azimDeg * DEG2RAD;
+    const sunDir = new THREE.Vector3(
+      Math.sin(azim) * Math.cos(elev),
+      Math.sin(elev),
+      Math.cos(azim) * Math.cos(elev)
+    );
+    this.screenMesh.material.uniforms.uSunDir.value.copy(sunDir);
+    this.screenMesh.material.uniforms.uSunDiskSize.value = t.sun.diskSize;
+    this.screenMesh.material.uniforms.uSunGlow.value = t.sun.glow;
+
+    // 云
+    this.screenMesh.material.uniforms.uCloudDensity.value = t.clouds.density;
+    this.screenMesh.material.uniforms.uCloudCoverage.value = t.clouds.coverage;
+    this.screenMesh.material.uniforms.uCloudSpeed.value = t.clouds.speed;
+    this.screenMesh.material.uniforms.uCloudScale.value = t.clouds.scale;
+    this.screenMesh.material.uniforms.uCloudDetail.value = t.clouds.detail;
+    this.screenMesh.material.uniforms.uCloudAniso.value = t.clouds.aniso;
+    this.screenMesh.material.uniforms.uCloudColor.value.copy(t.clouds.color);
+
+    // 风向（屏幕空间向量，x 右，y 下）
+    const wind = vecFromDeg(t.wind.dirDeg);
+    wind.multiplyScalar(clamp(t.wind.speed, 0, 2.0));
+    this.screenMesh.material.uniforms.uWindDir.value.set(wind.x, wind.y);
+
+    // 闪电
+    this.lightning.configure(t.lightning.probability, t.lightning.brightness, t.lightning.decay);
+
+    // 降水
+    if(this.precip){ this.scene.remove(this.precip.group); this.precip.dispose(); this.precip = null; }
+    if(t.precipitation.type !== 'none' && t.precipitation.intensity > 0){
+      this.precip = new PrecipitationSystem(t.precipitation.type, t.precipitation.intensity, wind);
+      this.scene.add(this.precip.group);
+    }
+  }
+
+  // 给“引擎层”的每帧入口（如果你不想用内部循环）
+  render(state){
+    // 可选：把引擎层的状态合并为当前模版偏移（这里保留接口）
+    // 例如：state.lightningEnergy，state.visibility，state.cloudOpacity...
+    // 简单演示：把引擎传来的闪电影响叠加（如果存在）
+    if(state && typeof state.lightningEnergy === 'number'){
+      this.screenMesh.material.uniforms.uLightning.value = Math.max(
+        this.screenMesh.material.uniforms.uLightning.value,
+        state.lightningEnergy
+      );
+    }
+    // 立即绘制一帧
+    this._frame(true);
+  }
+
+  _frame(forceDraw=false){
+    const dt = this._clock.getDelta();
+    const t = this.screenMesh.material.uniforms;
+
+    // 时间推进（云滚动等）
+    t.uTime.value += dt;
+
+    // 闪电脉冲（随机触发 + 衰减）
+    const e = this.lightning.update(dt);
+    // 融合外部叠加（若外部 render(state) 传了更大的值，上面 render() 已处理最大值）
+    t.uLightning.value = Math.max(t.uLightning.value*0.96, e);
+
+    // 降水推进
+    if(this.precip) this.precip.update(dt);
+
+    // 绘制
+    if(forceDraw || dt>0) this.renderer.render(this.scene, this.camera);
+  }
+
+  resize(w, h){
+    this.renderer.setSize(w, h, false);
+    this.renderer.setPixelRatio(this._caps?.dpr || Math.min(window.devicePixelRatio||1, 3));
+  }
+
+  destroy(){
+    cancelAnimationFrame(this._raf);
+    window.removeEventListener('resize', this._onResize);
+    if(this.precip){ this.precip.dispose(); }
+    if(this.screenMesh){
+      this.screenMesh.geometry.dispose();
+      this.screenMesh.material.dispose();
+    }
+    this.renderer.dispose();
+    if(this.renderer.domElement && this.renderer.domElement.parentNode){
+      this.renderer.domElement.parentNode.removeChild(this.renderer.domElement);
+    }
+  }
+}

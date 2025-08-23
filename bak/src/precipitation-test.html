@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>降水效果测试</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 20px;
+      font-family: Arial, sans-serif;
+      background: #1a1a1a;
+      color: white;
+    }
+    #test-container {
+      width: 100%;
+      height: 500px;
+      border: 2px solid #4CAF50;
+      border-radius: 10px;
+      margin: 20px 0;
+      position: relative;
+    }
+    .controls {
+      background: rgba(255, 255, 255, 0.1);
+      padding: 15px;
+      border-radius: 10px;
+      margin: 20px 0;
+    }
+    .btn {
+      background: #4CAF50;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      margin: 5px;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    .btn:hover {
+      background: #45a049;
+    }
+    .log {
+      background: #000;
+      color: #0f0;
+      padding: 10px;
+      border-radius: 5px;
+      font-family: monospace;
+      font-size: 12px;
+      height: 150px;
+      overflow-y: auto;
+      margin: 10px 0;
+    }
+  </style>
+</head>
+<body>
+  <h1>🌧️ 降水效果测试</h1>
+  
+  <div id="test-container"></div>
+  
+  <div class="controls">
+    <h3>天气控制</h3>
+    <button class="btn" onclick="setWeather('clear')">☀️ 晴天</button>
+    <button class="btn" onclick="setWeather('rain')">🌧️ 雨天</button>
+    <button class="btn" onclick="setWeather('snow')">❄️ 雪天</button>
+    <button class="btn" onclick="setWeather('storm')">⛈️ 雷暴</button>
+  </div>
+  
+  <div class="log" id="log"></div>
+  
+  <script src="../three.min.js"></script>
+  <script src="advanced-weather-renderer.js"></script>
+  
+  <script>
+    let renderer = null;
+    const logDiv = document.getElementById('log');
+    
+    function log(message) {
+      const timestamp = new Date().toLocaleTimeString();
+      logDiv.innerHTML += `[${timestamp}] ${message}<br>`;
+      logDiv.scrollTop = logDiv.scrollHeight;
+      console.log(message);
+    }
+    
+    async function init() {
+      try {
+        log('开始初始化天气渲染器...');
+        
+        const container = document.getElementById('test-container');
+        renderer = new AdvancedWeatherRenderer();
+        
+        await renderer.init(container);
+        log('✅ 天气渲染器初始化成功');
+        
+        // 默认显示晴天
+        setWeather('clear');
+        
+      } catch (error) {
+        log(`❌ 初始化失败: ${error.message}`);
+        console.error(error);
+      }
+    }
+    
+    function setWeather(type) {
+      if (!renderer) {
+        log('❌ 渲染器未初始化');
+        return;
+      }
+      
+      log(`切换到 ${type} 天气...`);
+      
+      switch(type) {
+        case 'clear':
+          renderer.applyTemplate('clear-day');
+          break;
+        case 'rain':
+          renderer.applyTemplate('rain');
+          break;
+        case 'snow':
+          renderer.applyTemplate('snow');
+          break;
+        case 'storm':
+          renderer.applyTemplate('storm');
+          break;
+      }
+      
+      log(`✅ 已切换到 ${type} 天气`);
+    }
+    
+    // 页面加载完成后初始化
+    window.addEventListener('load', init);
+  </script>
+</body>
+</html>

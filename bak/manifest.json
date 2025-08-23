@@ -1,0 +1,46 @@
+{
+  "manifest_version": 3,
+  "name": "天景 AeScape",
+  "version": "1.0.0",
+  "description": "让每一次打开新标签页都成为一次与自然的邂逅",
+  "permissions": [
+    "storage",
+    "geolocation"
+  ],
+  "host_permissions": [
+    "https://api.open-meteo.com/*",
+    "https://geocoding-api.open-meteo.com/*",
+    "https://api.openweathermap.org/*"
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "chrome_url_overrides": {
+    "newtab": "src/index.html"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "css": ["css/floating-ball.css"]
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html"
+  },
+  "icons": {
+    "16": "icon16.png",
+    "32": "icon32.png", 
+    "48": "icon48.png",
+    "128": "icon128.png"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["src/floating-ball.html", "src/floating-ball.js", "settings.html", "src/index.js", "test.html", "test-weather.js", "debug-tab.html", "simple-test.html", "extension-test.html"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}

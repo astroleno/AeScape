@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>A/B对照测试 - 天气引擎</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 20px;
+      font-family: Arial, sans-serif;
+      background: #1a1a1a;
+      color: white;
+    }
+    #test-container {
+      width: 100%;
+      height: 600px; /* 增加高度以获得更好的长焦效果 */
+      border: 2px solid #4CAF50;
+      border-radius: 10px;
+      margin: 20px 0;
+      position: relative;
+    }
+    .controls {
+      background: rgba(255, 255, 255, 0.1);
+      padding: 15px;
+      border-radius: 10px;
+      margin: 20px 0;
+    }
+    .control-row {
+      display: flex;
+      gap: 15px;
+      margin: 10px 0;
+    }
+    .control-group {
+      flex: 1;
+      margin: 0;
+      padding: 8px;
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 5px;
+    }
+    .control-group h3, .control-group h4 {
+      margin: 0 0 8px 0;
+      color: #4CAF50;
+      font-size: 14px;
+    }
+    .slider-container {
+      display: flex;
+      align-items: center;
+      margin: 8px 0;
+    }
+    .slider-container label {
+      min-width: 120px;
+      font-size: 14px;
+    }
+    .slider {
+      flex: 1;
+      margin: 0 10px;
+    }
+    .value-display {
+      min-width: 60px;
+      font-size: 12px;
+      color: #ccc;
+    }
+    .btn {
+      background: #4CAF50;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      margin: 5px;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    .btn:hover {
+      background: #45a049;
+    }
+    .btn.active {
+      background: #ff9800;
+    }
+    .btn-group {
+      margin: 10px 0;
+    }
+    .preset-btn {
+      background: #2196F3;
+      margin: 3px;
+      padding: 6px 12px;
+      font-size: 12px;
+    }
+    .preset-btn:hover {
+      background: #1976D2;
+    }
+    .log {
+      background: #000;
+      color: #0f0;
+      padding: 10px;
+      border-radius: 5px;
+      font-family: monospace;
+      font-size: 12px;
+      height: 200px;
+      overflow-y: auto;
+      margin: 10px 0;
+    }
+    .status {
+      background: rgba(0, 0, 0, 0.7);
+      padding: 10px;
+      border-radius: 5px;
+      margin: 10px 0;
+      font-size: 14px;
+    }
+    .status-item {
+      margin: 5px 0;
+    }
+    .status-label {
+      color: #4CAF50;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <h1>🔬 A/B对照测试 - 天气引擎</h1>
+  
+  <div id="test-container"></div>
+  
+  <div class="controls">
+    <h3>🎯 快速预设（weatheradvice.md建议）</h3>
+    <div class="btn-group">
+      <button class="btn preset-btn" onclick="applyPreset('ios-clear')">iOS晴天</button>
+      <button class="btn preset-btn" onclick="applyPreset('ios-cloudy')">iOS多云</button>
+      <button class="btn preset-btn" onclick="applyPreset('ios-rain')">iOS雨天</button>
+      <button class="btn preset-btn" onclick="applyPreset('ios-snow')">iOS雪天</button>
+      <button class="btn preset-btn" onclick="applyPreset('low-fog')">低雾对比</button>
+      <button class="btn preset-btn" onclick="applyPreset('high-detail')">高细节</button>
+    </div>
+    
+    <h3>🔬 边缘假象验证测试</h3>
+    <div class="btn-group">
+      <button class="btn preset-btn" onclick="applyPreset('edge-test-1')" style="background: #f44336;">弱化银边</button>
+      <button class="btn preset-btn" onclick="applyPreset('edge-test-2')" style="background: #f44336;">极低雾</button>
+      <button class="btn preset-btn" onclick="applyPreset('edge-test-3')" style="background: #f44336;">降低后期</button>
+      <button class="btn preset-btn" onclick="applyPreset('edge-test-4')" style="background: #f44336;">遮太阳测试</button>
+    </div>
+  </div>
+
+  <div class="controls">
+    <div class="control-row">
+      <div class="control-group">
+        <h4>🌫️ 雾效</h4>
+        <div class="slider-container">
+          <label>雾密度:</label>
+          <input type="range" class="slider" id="fogDensity" min="0" max="0.1" step="0.001" value="0.002">
+          <span class="value-display" id="fogDensityValue">0.002</span>
+        </div>
+      </div>
+      
+      <div class="control-group">
+        <h4>☁️ 云层</h4>
+        <div class="slider-container">
+          <label>云密度:</label>
+          <input type="range" class="slider" id="cloudDensity" min="0" max="1" step="0.01" value="0.4">
+          <span class="value-display" id="cloudDensityValue">0.4</span>
+        </div>
+      </div>
+      
+      <div class="control-group">
+        <h4>☀️ 光照</h4>
+        <div class="slider-container">
+          <label>曝光:</label>
+          <input type="range" class="slider" id="exposure" min="0.5" max="2" step="0.1" value="1.1">
+          <span class="value-display" id="exposureValue">1.1</span>
+        </div>
+      </div>
+    </div>
+    
+    <div class="control-row">
+      <div class="control-group">
+        <h4>🔍 细节</h4>
+        <div class="slider-container">
+          <label>云锐利度:</label>
+          <input type="range" class="slider" id="cloudSharpness" min="0.1" max="3" step="0.1" value="2.0">
+          <span class="value-display" id="cloudSharpnessValue">2.0</span>
+        </div>
+      </div>
+      
+      <div class="control-group">
+        <h4>💨 速度</h4>
+        <div class="slider-container">
+          <label>云速度:</label>
+          <input type="range" class="slider" id="cloudSpeed" min="0" max="0.5" step="0.01" value="0.08">
+          <span class="value-display" id="cloudSpeedValue">0.08</span>
+        </div>
+      </div>
+      
+      <div class="control-group">
+        <h4>🌈 边缘</h4>
+        <div class="slider-container">
+          <label>银边:</label>
+          <input type="range" class="slider" id="rimLight" min="0" max="3" step="0.1" value="2.5">
+          <span class="value-display" id="rimLightValue">2.5</span>
+        </div>
+      </div>
+    </div>
+    
+    <div class="control-row">
+      <div class="btn-group">
+        <button class="btn" onclick="toggleAnimation()">⏸️ 暂停动画</button>
+        <button class="btn" onclick="resetParams()">🔄 重置</button>
+        <button class="btn" onclick="saveCurrentState()">💾 保存</button>
+        <button class="btn" onclick="loadSavedState()">📁 加载</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="status" id="status">
+    <div class="status-item"><span class="status-label">渲染器状态:</span> <span id="rendererStatus">初始化中...</span></div>
+    <div class="status-item"><span class="status-label">当前天气:</span> <span id="currentWeather">未设置</span></div>
+    <div class="status-item"><span class="status-label">动画状态:</span> <span id="animationStatus">运行中</span></div>
+    <div class="status-item"><span class="status-label">性能:</span> <span id="performanceStatus">检测中...</span></div>
+  </div>
+
+  <div class="log" id="log"></div>
+  
+  <script src="../three.min.js"></script>
+  <script src="advanced-weather-renderer.js"></script>
+  <script src="full-weather-engine.js"></script>
+  
+  <script>
+    let renderer = null;
+    let weatherEngine = null;
+    let animationPaused = false;
+    let savedState = null;
+    const logDiv = document.getElementById('log');
+    
+    function log(message, type = 'info') {
+      const timestamp = new Date().toLocaleTimeString();
+      const colorClass = type === 'error' ? 'color: #f44' : type === 'success' ? 'color: #4f4' : type === 'warning' ? 'color: #ff4' : '';
+      logDiv.innerHTML += `<span style="${colorClass}">[${timestamp}] ${message}</span><br>`;
+      logDiv.scrollTop = logDiv.scrollHeight;
+      console.log(`[${type}] ${message}`);
+    }
+    
+    // 初始化滑块事件
+    function initSliders() {
+      const sliders = document.querySelectorAll('.slider');
+      sliders.forEach(slider => {
+        const valueDisplay = document.getElementById(slider.id + 'Value');
+        slider.addEventListener('input', function() {
+          let value = parseFloat(this.value);
+          if (this.id === 'sunAltitude' || this.id === 'sunAzimuth') {
+            valueDisplay.textContent = value + '°';
+          } else {
+            valueDisplay.textContent = value;
+          }
+          updateWeatherParams();
+        });
+      });
+    }
+    
+    // 更新天气参数
+    function updateWeatherParams() {
+      if (!weatherEngine || !weatherEngine.renderer) return;
+      
+      const params = {
+        fogDensity: parseFloat(document.getElementById('fogDensity').value),
+        cloudOpacity: parseFloat(document.getElementById('cloudDensity').value),
+        cloudSpeed: parseFloat(document.getElementById('cloudSpeed').value),
+        sunAltitude: parseFloat(document.getElementById('sunAltitude')?.value || 45),
+        sunAzimuth: parseFloat(document.getElementById('sunAzimuth')?.value || 180),
+        exposure: parseFloat(document.getElementById('exposure').value),
+        rimLight: parseFloat(document.getElementById('rimLight').value),
+        cloudSharpness: parseFloat(document.getElementById('cloudSharpness').value)
+      };
+      
+      weatherEngine.renderer.updateParams(params);
+      log(`参数已更新: 雾${params.fogDensity.toFixed(3)}, 云${params.cloudOpacity.toFixed(2)}`);
+    }
+    
+    // 应用预设
+    function applyPreset(presetName) {
+      log(`应用预设: ${presetName}`, 'success');
+      
+      const presets = {
+        'ios-clear': {
+          fogDensity: 0.001,
+          cloudDensity: 0.25,
+          cloudSpeed: 0.06,
+          cloudSharpness: 2.0,
+          exposure: 1.1,
+          rimLight: 2.5
+        },
+        'ios-cloudy': {
+          fogDensity: 0.002,
+          cloudDensity: 0.55,
+          cloudSpeed: 0.08,
+          cloudSharpness: 2.2,
+          exposure: 1.0,
+          rimLight: 2.8
+        },
+        'ios-rain': {
+          fogDensity: 0.004,
+          cloudDensity: 0.92,
+          cloudSpeed: 0.11,
+          cloudSharpness: 2.5,
+          exposure: 0.92,
+          rimLight: 2.2
+        },
+        'ios-snow': {
+          fogDensity: 0.003,
+          cloudDensity: 0.88,
+          cloudSpeed: 0.06,
+          cloudSharpness: 2.3,
+          exposure: 0.98,
+          rimLight: 2.4
+        },
+        'low-fog': {
+          fogDensity: 0.001,
+          cloudDensity: 0.4,
+          cloudSpeed: 0.08,
+          cloudSharpness: 2.0,
+          exposure: 1.1,
+          rimLight: 2.5
+        },
+        'high-detail': {
+          fogDensity: 0.002,
+          cloudDensity: 0.5,
+          cloudSpeed: 0.1,
+          cloudSharpness: 3.0,
+          exposure: 1.2,
+          rimLight: 3.0
+        },
+        // 边缘假象验证测试预设
+        'edge-test-1': {
+          fogDensity: 0.002,
+          cloudDensity: 0.4,
+          cloudSpeed: 0.08,
+          cloudSharpness: 1.2,  // 降低锐利度
+          exposure: 1.0,
+          rimLight: 0.6  // 大幅弱化银边
+        },
+        'edge-test-2': {
+          fogDensity: 0.001,  // 极低雾
+          cloudDensity: 0.4,
+          cloudSpeed: 0.08,
+          cloudSharpness: 1.5,
+          exposure: 1.0,
+          rimLight: 1.0
+        },
+        'edge-test-3': {
+          fogDensity: 0.002,
+          cloudDensity: 0.4,
+          cloudSpeed: 0.08,
+          cloudSharpness: 1.3,
+          exposure: 0.9,  // 降低曝光
+          rimLight: 1.2
+        },
+        'edge-test-4': {
+          fogDensity: 0.003,
+          cloudDensity: 0.85,  // 高密度云遮挡太阳
+          cloudSpeed: 0.1,
+          cloudSharpness: 1.5,
+          exposure: 0.95,
+          rimLight: 1.5
+        }
+      };
+      
+      const preset = presets[presetName];
+      if (preset) {
+        Object.keys(preset).forEach(key => {
+          const slider = document.getElementById(key);
+          const valueDisplay = document.getElementById(key + 'Value');
+          if (slider) {
+            slider.value = preset[key];
+            if (valueDisplay) {
+              if (key === 'sunAltitude' || key === 'sunAzimuth') {
+                valueDisplay.textContent = preset[key] + '°';
+              } else {
+                valueDisplay.textContent = preset[key];
+              }
+            }
+          }
+        });
+        
+        updateWeatherParams();
+        
+        // 设置对应的天气类型
+        const weatherMap = {
+          'ios-clear': 'clear',
+          'ios-cloudy': 'cloudy',
+          'ios-rain': 'rain',
+          'ios-snow': 'snow'
+        };
+        
+        if (weatherMap[presetName] && weatherEngine) {
+          weatherEngine.controlParams.weatherType = weatherMap[presetName];
+          weatherEngine.updateWeatherType();
+        }
+      }
+    }
+    
+    // 切换动画
+    function toggleAnimation() {
+      animationPaused = !animationPaused;
+      document.getElementById('animationStatus').textContent = animationPaused ? '已暂停' : '运行中';
+      log(`动画${animationPaused ? '已暂停' : '已继续'}`, 'warning');
+    }
+    
+    // 重置参数
+    function resetParams() {
+      log('重置所有参数到默认值', 'warning');
+      applyPreset('ios-clear');
+    }
+    
+    // 保存当前状态
+    function saveCurrentState() {
+      const sliders = document.querySelectorAll('.slider');
+      savedState = {};
+      sliders.forEach(slider => {
+        savedState[slider.id] = slider.value;
+      });
+      log('当前状态已保存', 'success');
+    }
+    
+    // 加载保存的状态
+    function loadSavedState() {
+      if (savedState) {
+        Object.keys(savedState).forEach(key => {
+          const slider = document.getElementById(key);
+          const valueDisplay = document.getElementById(key + 'Value');
+          if (slider) {
+            slider.value = savedState[key];
+            if (valueDisplay) {
+              if (key === 'sunAltitude' || key === 'sunAzimuth') {
+                valueDisplay.textContent = savedState[key] + '°';
+              } else {
+                valueDisplay.textContent = savedState[key];
+              }
+            }
+          }
+        });
+        updateWeatherParams();
+        log('已加载保存的状态', 'success');
+      } else {
+        log('没有保存的状态', 'warning');
+      }
+    }
+    
+    // 更新状态显示
+    function updateStatus() {
+      if (weatherEngine && weatherEngine.getEngineState) {
+        const state = weatherEngine.getEngineState();
+        document.getElementById('rendererStatus').textContent = 
+          state.initialized ? '已初始化' : '未初始化';
+        document.getElementById('currentWeather').textContent = 
+          state.currentTemplate || '未知';
+      }
+      
+      // 性能监控
+      if (window.performance && window.performance.memory) {
+        const memory = window.performance.memory;
+        document.getElementById('performanceStatus').textContent = 
+          `内存: ${(memory.usedJSHeapSize / 1048576).toFixed(1)}MB`;
+      }
+    }
+    
+    async function init() {
+      try {
+        log('=== 开始初始化A/B测试系统 ===', 'info');
+        
+        // 初始化滑块
+        initSliders();
+        log('✅ 滑块控件已初始化', 'success');
+        
+        // 创建天气引擎
+        const container = document.getElementById('test-container');
+        weatherEngine = new FullWeatherEngine(container);
+        
+        await weatherEngine.initializationPromise;
+        log('✅ 天气引擎初始化成功', 'success');
+        
+        // 应用iOS晴天预设
+        applyPreset('ios-clear');
+        log('✅ 已应用iOS晴天预设', 'success');
+        
+        // 定期更新状态
+        setInterval(updateStatus, 1000);
+        log('✅ 状态监控已启动', 'success');
+        
+        log('🎉 A/B测试系统初始化完成！', 'success');
+        log('💡 提示：尝试不同的预设和参数组合，观察iOS天气效果', 'info');
+        
+      } catch (error) {
+        log(`❌ 初始化失败: ${error.message}`, 'error');
+        console.error(error);
+      }
+    }
+    
+    // 页面加载完成后初始化
+    window.addEventListener('load', init);
+  </script>
+</body>
+</html>
