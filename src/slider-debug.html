@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>滑动条调试</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 20px;
+      font-family: Arial, sans-serif;
+      background: #f0f0f0;
+    }
+    .debug-container {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+    }
+    .slider-test {
+      margin: 10px 0;
+    }
+    .slider-test label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: bold;
+    }
+    .slider-test input[type="range"] {
+      width: 300px;
+    }
+    .slider-test .value {
+      display: inline-block;
+      width: 60px;
+      margin-left: 10px;
+      font-family: monospace;
+    }
+    #debug-output {
+      background: #f8f9fa;
+      padding: 15px;
+      border-radius: 4px;
+      border: 1px solid #dee2e6;
+      margin-top: 20px;
+      font-family: monospace;
+      white-space: pre-wrap;
+      max-height: 400px;
+      overflow-y: auto;
+    }
+    .test-button {
+      background: #007bff;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 4px;
+      cursor: pointer;
+      margin: 5px;
+    }
+    .test-button:hover {
+      background: #0056b3;
+    }
+    #weather-container {
+      width: 800px;
+      height: 600px;
+      border: 2px solid #ccc;
+      margin: 20px 0;
+      border-radius: 8px;
+    }
+  </style>
+</head>
+<body>
+  <h1>滑动条调试页面</h1>
+  
+  <div class="debug-container">
+    <h2>天气引擎状态</h2>
+    <button class="test-button" onclick="initEngine()">初始化引擎</button>
+    <button class="test-button" onclick="checkEngineState()">检查引擎状态</button>
+    <button class="test-button" onclick="testDirectControl()">直接控制测试</button>
+  </div>
+  
+  <div id="weather-container"></div>
+  
+  <div class="debug-container">
+    <h2>滑动条测试</h2>
+    
+    <div class="slider-test">
+      <label>太阳高度角:</label>
+      <input type="range" id="sun-altitude" min="-90" max="90" value="30" step="1" data-param="sunAltitude">
+      <span class="value" id="sun-altitude-value">30°</span>
+    </div>
+    
+    <div class="slider-test">
+      <label>太阳方位角:</label>
+      <input type="range" id="sun-azimuth" min="0" max="360" value="180" step="1" data-param="sunAzimuth">
+      <span class="value" id="sun-azimuth-value">180°</span>
+    </div>
+    
+    <div class="slider-test">
+      <label>时间 (小时):</label>
+      <input type="range" id="time-hours" min="0" max="24" value="12" step="0.5" data-param="timeOfDayHours">
+      <span class="value" id="time-hours-value">12.0</span>
+    </div>
+    
+    <div class="slider-test">
+      <label>云透明度:</label>
+      <input type="range" id="cloud-opacity" min="0" max="1" value="0.4" step="0.01" data-param="cloudOpacity">
+      <span class="value" id="cloud-opacity-value">0.40</span>
+    </div>
+    
+    <div class="slider-test">
+      <label>雾浓度:</label>
+      <input type="range" id="fog-density" min="0" max="0.2" value="0.03" step="0.001" data-param="fogDensity">
+      <span class="value" id="fog-density-value">0.030</span>
+    </div>
+    
+    <button class="test-button" onclick="setupSliderListeners()">设置滑动条监听器</button>
+    <button class="test-button" onclick="clearDebug()">清除调试信息</button>
+  </div>
+  
+  <div id="debug-output">调试信息将显示在这里...</div>
+  
+  <script src="../three.min.js"></script>
+  <script src="full-weather-engine.js"></script>
+  <script>
+    let weatherEngine;
+    const debugOutput = document.getElementById('debug-output');
+    
+    function log(message) {
+      const timestamp = new Date().toLocaleTimeString();
+      debugOutput.textContent += `[${timestamp}] ${message}\n`;
+      debugOutput.scrollTop = debugOutput.scrollHeight;
+      console.log(message);
+    }
+    
+    function clearDebug() {
+      debugOutput.textContent = '';
+    }
+    
+    async function initEngine() {
+      clearDebug();
+      log('=== 开始初始化天气引擎 ===');
+      
+      try {
+        const container = document.getElementById('weather-container');
+        weatherEngine = new FullWeatherEngine(container);
+        
+        log('✅ 天气引擎实例创建成功');
+        
+        // 等待初始化完成
+        await weatherEngine.initializationPromise;
+        
+        log('✅ 天气引擎初始化完成');
+        checkEngineState();
+        
+      } catch (error) {
+        log('❌ 初始化失败: ' + error.message);
+        console.error(error);
+      }
+    }
+    
+    function checkEngineState() {
+      log('=== 检查引擎状态 ===');
+      
+      if (!weatherEngine) {
+        log('❌ 天气引擎未初始化');
+        return;
+      }
+      
+      log('引擎状态检查:');
+      log(`  场景: ${!!weatherEngine.scene}`);
+      log(`  相机: ${!!weatherEngine.camera}`);
+      log(`  渲染器: ${!!weatherEngine.renderer}`);
+      log(`  控制参数: ${!!weatherEngine.controlParams}`);
+      log(`  方向光: ${!!weatherEngine.directionalLight}`);
+      log(`  环境光: ${!!weatherEngine.ambientLight}`);
+      
+      if (weatherEngine.controlParams) {
+        log('控制参数内容:');
+        Object.keys(weatherEngine.controlParams).forEach(key => {
+          log(`  ${key}: ${weatherEngine.controlParams[key]}`);
+        });
+      }
+      
+      log('方法可用性:');
+      log(`  applyControlParams: ${typeof weatherEngine.applyControlParams}`);
+      log(`  updateSunPosition: ${typeof weatherEngine.updateSunPosition}`);
+      log(`  calculateSunPositionFromTime: ${typeof weatherEngine.calculateSunPositionFromTime}`);
+      log(`  updateWeatherType: ${typeof weatherEngine.updateWeatherType}`);
+    }
+    
+    function setupSliderListeners() {
+      clearDebug();
+      log('=== 设置滑动条监听器 ===');
+      
+      if (!weatherEngine) {
+        log('❌ 请先初始化天气引擎');
+        return;
+      }
+      
+      const sliders = document.querySelectorAll('input[type="range"]');
+      log(`找到 ${sliders.length} 个滑动条`);
+      
+      sliders.forEach((slider, index) => {
+        log(`设置滑动条 ${index + 1}: ${slider.id}`);
+        
+        // 移除旧的监听器
+        slider.removeEventListener('input', handleSliderChange);
+        
+        // 添加新的监听器
+        slider.addEventListener('input', handleSliderChange);
+        
+        // 初始化显示值
+        updateSliderDisplay(slider);
+      });
+      
+      log('✅ 所有滑动条监听器设置完成');
+    }
+    
+    function handleSliderChange(event) {
+      const slider = event.target;
+      const param = slider.getAttribute('data-param');
+      const value = parseFloat(slider.value);
+      
+      log(`滑动条变化: ${param} = ${value}`);
+      
+      // 更新显示值
+      updateSliderDisplay(slider);
+      
+      if (!weatherEngine || !weatherEngine.controlParams) {
+        log('❌ 天气引擎或控制参数不可用');
+        return;
+      }
+      
+      // 检查参数是否存在
+      if (!(param in weatherEngine.controlParams)) {
+        log(`❌ 控制参数 ${param} 不存在`);
+        log(`可用参数: ${Object.keys(weatherEngine.controlParams).join(', ')}`);
+        return;
+      }
+      
+      try {
+        // 更新引擎参数
+        const oldValue = weatherEngine.controlParams[param];
+        weatherEngine.controlParams[param] = value;
+        
+        log(`参数更新: ${param} ${oldValue} → ${value}`);
+        
+        // 特殊处理某些参数
+        if (param === 'timeOfDayHours') {
+          log('计算太阳位置...');
+          weatherEngine.calculateSunPositionFromTime();
+          log(`太阳位置: 高度角 ${weatherEngine.controlParams.sunAltitude.toFixed(2)}°, 方位角 ${weatherEngine.controlParams.sunAzimuth.toFixed(2)}°`);
+        }
+        
+        if (param === 'sunAltitude' || param === 'sunAzimuth') {
+          log('更新太阳位置...');
+          weatherEngine.updateSunPosition();
+        }
+        
+        // 应用所有参数
+        log('应用控制参数...');
+        weatherEngine.applyControlParams();
+        
+        log(`✅ ${param} 更新完成`);
+        
+      } catch (error) {
+        log(`❌ 更新 ${param} 失败: ${error.message}`);
+        console.error(error);
+      }
+    }
+    
+    function updateSliderDisplay(slider) {
+      const param = slider.getAttribute('data-param');
+      const value = parseFloat(slider.value);
+      const displayElement = document.getElementById(slider.id + '-value');
+      
+      if (!displayElement) {
+        log(`❌ 找不到显示元素: ${slider.id}-value`);
+        return;
+      }
+      
+      let displayValue = value;
+      
+      if (param.includes('Altitude') || param.includes('Azimuth')) {
+        displayValue = value + '°';
+      } else if (param === 'fogDensity') {
+        displayValue = value.toFixed(3);
+      } else if (param === 'cloudOpacity') {
+        displayValue = value.toFixed(2);
+      } else if (param === 'timeOfDayHours') {
+        displayValue = value.toFixed(1);
+      } else {
+        displayValue = value.toFixed(1);
+      }
+      
+      displayElement.textContent = displayValue;
+    }
+    
+    function testDirectControl() {
+      clearDebug();
+      log('=== 直接控制测试 ===');
+      
+      if (!weatherEngine || !weatherEngine.controlParams) {
+        log('❌ 天气引擎未初始化');
+        return;
+      }
+      
+      try {
+        // 测试直接修改参数
+        log('测试1: 直接修改太阳高度角');
+        weatherEngine.controlParams.sunAltitude = 45;
+        weatherEngine.updateSunPosition();
+        weatherEngine.applyControlParams();
+        log('✅ 太阳高度角直接修改成功');
+        
+        log('测试2: 直接修改云透明度');
+        weatherEngine.controlParams.cloudOpacity = 0.8;
+        weatherEngine.applyControlParams();
+        log('✅ 云透明度直接修改成功');
+        
+        log('测试3: 时间计算太阳位置');
+        weatherEngine.controlParams.timeOfDayHours = 15;
+        weatherEngine.calculateSunPositionFromTime();
+        weatherEngine.updateSunPosition();
+        weatherEngine.applyControlParams();
+        log(`✅ 时间计算成功: 高度角 ${weatherEngine.controlParams.sunAltitude.toFixed(2)}°, 方位角 ${weatherEngine.controlParams.sunAzimuth.toFixed(2)}°`);
+        
+      } catch (error) {
+        log('❌ 直接控制测试失败: ' + error.message);
+        console.error(error);
+      }
+    }
+    
+    // 页面加载完成后自动初始化
+    window.addEventListener('load', () => {
+      log('页面加载完成，请点击"初始化引擎"开始测试');
+    });
+  </script>
+</body>
+</html>

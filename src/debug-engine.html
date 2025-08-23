@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>天气引擎问题诊断</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 20px;
+      font-family: Arial, sans-serif;
+      background: #f0f0f0;
+    }
+    .test-container {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      position: relative;
+      z-index: 10;
+    }
+    #weather-container {
+      width: 600px;
+      height: 400px;
+      border: 2px solid #ccc;
+      margin: 20px 0;
+      border-radius: 8px;
+      background: #000;
+      position: relative;
+      z-index: 1;
+    }
+    .test-button {
+      background: #007bff;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 4px;
+      cursor: pointer;
+      margin: 5px;
+    }
+    .test-button:hover {
+      background: #0056b3;
+    }
+    #console-output {
+      background: #1e1e1e;
+      color: #fff;
+      padding: 15px;
+      border-radius: 4px;
+      font-family: monospace;
+      font-size: 12px;
+      max-height: 400px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+    }
+    .slider-test {
+      margin: 10px 0;
+    }
+    .slider-test input[type="range"] {
+      width: 300px;
+    }
+  </style>
+</head>
+<body>
+  <h1>🔍 天气引擎问题诊断</h1>
+  
+  <div class="test-container">
+    <h2>基础测试</h2>
+    <button class="test-button" onclick="testEngineCreation()">测试引擎创建</button>
+    <button class="test-button" onclick="testEngineInitialization()">测试引擎初始化</button>
+    <button class="test-button" onclick="testControlParams()">测试控制参数</button>
+    <button class="test-button" onclick="testMethods()">测试方法可用性</button>
+    <button class="test-button" onclick="clearConsole()">清除输出</button>
+  </div>
+  
+  <div id="weather-container"></div>
+  
+  <div class="test-container">
+    <h2>事件绑定测试</h2>
+    <div class="slider-test">
+      <label>测试滑动条:</label>
+      <input type="range" id="test-slider" min="0" max="100" value="50">
+      <span id="test-slider-value">50</span>
+    </div>
+    <button class="test-button" onclick="testEventBinding()">测试事件绑定</button>
+    <button class="test-button" onclick="testDirectMethodCall()">测试直接方法调用</button>
+  </div>
+  
+  <div class="test-container">
+    <h2>完整滑动条测试</h2>
+    <div class="slider-test">
+      <label>太阳高度角:</label>
+      <input type="range" id="sun-altitude" min="-90" max="90" value="30">
+      <span id="sun-altitude-value">30</span>
+    </div>
+    <button class="test-button" onclick="testRealSlider()">测试真实滑动条</button>
+  </div>
+  
+  <div id="console-output">等待测试...</div>
+  
+  <script src="../three.min.js"></script>
+  <script src="full-weather-engine.js"></script>
+  <script>
+    let weatherEngine = null;
+    const consoleOutput = document.getElementById('console-output');
+    
+    function log(message) {
+      const timestamp = new Date().toLocaleTimeString();
+      consoleOutput.textContent += `[${timestamp}] ${message}\n`;
+      consoleOutput.scrollTop = consoleOutput.scrollHeight;
+      console.log(message);
+    }
+    
+    function clearConsole() {
+      consoleOutput.textContent = '';
+    }
+    
+    function testEngineCreation() {
+      clearConsole();
+      log('=== 测试引擎创建 ===');
+      
+      try {
+        const container = document.getElementById('weather-container');
+        weatherEngine = new FullWeatherEngine(container);
+        log('✅ 引擎实例创建成功');
+        log(`引擎类型: ${typeof weatherEngine}`);
+        log(`引擎对象: ${weatherEngine}`);
+        log(`初始化Promise: ${weatherEngine.initializationPromise}`);
+      } catch (error) {
+        log(`❌ 引擎创建失败: ${error.message}`);
+        console.error(error);
+      }
+    }
+    
+    async function testEngineInitialization() {
+      clearConsole();
+      log('=== 测试引擎初始化 ===');
+      
+      if (!weatherEngine) {
+        log('❌ 请先创建引擎');
+        return;
+      }
+      
+      try {
+        log('等待初始化完成...');
+        await weatherEngine.initializationPromise;
+        log('✅ 引擎初始化完成');
+        
+        // 检查核心对象
+        log('核心对象状态:');
+        log(`  场景: ${!!weatherEngine.scene}`);
+        log(`  相机: ${!!weatherEngine.camera}`);
+        log(`  渲染器: ${!!weatherEngine.renderer}`);
+        log(`  合成器: ${!!weatherEngine.composer}`);
+        
+      } catch (error) {
+        log(`❌ 引擎初始化失败: ${error.message}`);
+        console.error(error);
+      }
+    }
+    
+    function testControlParams() {
+      clearConsole();
+      log('=== 测试控制参数 ===');
+      
+      if (!weatherEngine) {
+        log('❌ 请先创建引擎');
+        return;
+      }
+      
+      log(`控制参数对象: ${weatherEngine.controlParams}`);
+      log(`控制参数类型: ${typeof weatherEngine.controlParams}`);
+      
+      if (weatherEngine.controlParams) {
+        log('控制参数内容:');
+        Object.keys(weatherEngine.controlParams).forEach(key => {
+          log(`  ${key}: ${weatherEngine.controlParams[key]}`);
+        });
+      } else {
+        log('❌ 控制参数不存在');
+      }
+    }
+    
+    function testMethods() {
+      clearConsole();
+      log('=== 测试方法可用性 ===');
+      
+      if (!weatherEngine) {
+        log('❌ 请先创建引擎');
+        return;
+      }
+      
+      const methods = [
+        'applyControlParams',
+        'updateSunPosition',
+        'updateWeatherType',
+        'calculateSunPositionFromTime',
+        'resetControlParams'
+      ];
+      
+      methods.forEach(method => {
+        const exists = typeof weatherEngine[method] === 'function';
+        log(`  ${method}: ${exists ? '✅ 存在' : '❌ 不存在'}`);
+        if (exists) {
+          log(`    类型: ${typeof weatherEngine[method]}`);
+        }
+      });
+    }
+    
+    function testEventBinding() {
+      clearConsole();
+      log('=== 测试事件绑定 ===');
+      
+      const slider = document.getElementById('test-slider');
+      const valueDisplay = document.getElementById('test-slider-value');
+      
+      // 测试基础事件绑定
+      slider.oninput = function() {
+        const value = this.value;
+        valueDisplay.textContent = value;
+        log(`基础事件触发: ${value}`);
+      };
+      
+      log('✅ 基础事件绑定完成');
+      log('请拖动测试滑动条');
+    }
+    
+    function testDirectMethodCall() {
+      clearConsole();
+      log('=== 测试直接方法调用 ===');
+      
+      if (!weatherEngine || !weatherEngine.controlParams) {
+        log('❌ 引擎或控制参数不可用');
+        return;
+      }
+      
+      try {
+        // 测试直接修改参数
+        const originalValue = weatherEngine.controlParams.sunAltitude;
+        weatherEngine.controlParams.sunAltitude = 60;
+        log(`参数修改: ${originalValue} → ${weatherEngine.controlParams.sunAltitude}`);
+        
+        // 测试方法调用
+        if (weatherEngine.updateSunPosition) {
+          log('调用 updateSunPosition...');
+          weatherEngine.updateSunPosition();
+          log('✅ updateSunPosition 调用成功');
+        }
+        
+        if (weatherEngine.applyControlParams) {
+          log('调用 applyControlParams...');
+          weatherEngine.applyControlParams();
+          log('✅ applyControlParams 调用成功');
+        }
+        
+      } catch (error) {
+        log(`❌ 方法调用失败: ${error.message}`);
+        console.error(error);
+      }
+    }
+    
+    function testRealSlider() {
+      clearConsole();
+      log('=== 测试真实滑动条 ===');
+      
+      if (!weatherEngine || !weatherEngine.controlParams) {
+        log('❌ 引擎或控制参数不可用');
+        return;
+      }
+      
+      const slider = document.getElementById('sun-altitude');
+      const valueDisplay = document.getElementById('sun-altitude-value');
+      
+      log('设置真实滑动条事件...');
+      
+      slider.oninput = function() {
+        const value = parseFloat(this.value);
+        valueDisplay.textContent = value;
+        
+        log(`滑动条变化: ${value}`);
+        
+        try {
+          // 直接修改引擎参数
+          weatherEngine.controlParams.sunAltitude = value;
+          log(`参数已设置为: ${weatherEngine.controlParams.sunAltitude}`);
+          
+          // 调用更新方法
+          if (weatherEngine.updateSunPosition) {
+            weatherEngine.updateSunPosition();
+            log('✅ updateSunPosition 调用成功');
+          }
+          
+          if (weatherEngine.applyControlParams) {
+            weatherEngine.applyControlParams();
+            log('✅ applyControlParams 调用成功');
+          }
+          
+        } catch (error) {
+          log(`❌ 滑动条处理失败: ${error.message}`);
+          console.error(error);
+        }
+      };
+      
+      log('✅ 真实滑动条事件绑定完成');
+      log('请拖动太阳高度角滑动条测试');
+    }
+    
+    // 页面加载完成
+    window.addEventListener('load', () => {
+      log('页面加载完成，请按顺序测试');
+      log('1. 测试引擎创建');
+      log('2. 测试引擎初始化');
+      log('3. 测试控制参数');
+      log('4. 测试方法可用性');
+    });
+  </script>
+</body>
+</html>

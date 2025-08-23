@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>iOS 风格天气 · Three.js (ESM)</title>
+
+<!-- ESM import map（演示用 CDN；扩展里建议改成本地打包路径） -->
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+
+<style>
+  /* 极简样式（不依赖 Tailwind，适合扩展的 CSP） */
+  html,body { height:100%; margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "PingFang SC","Noto Sans CJK SC","Microsoft YaHei", sans-serif; }
+  #app { position:fixed; inset:0; display:grid; grid-template-rows:auto 1fr; background:linear-gradient(to bottom,#87CEEB,#E0F7FA); }
+  header { backdrop-filter:saturate(1.2) blur(8px); background: rgba(255,255,255,.6); border-bottom:1px solid rgba(0,0,0,.06); padding:10px 14px; display:flex; align-items:center; justify-content:space-between; }
+  header h1 { margin:0; font-size:16px; color:#0f172a; font-weight:600; }
+  header .meta { font-size:12px; color:#334155; }
+  #canvas-host { position:relative; }
+  #scene { position:absolute; inset:0; }
+  .card { position:absolute; top:12px; right:12px; background:rgba(255,255,255,.75); backdrop-filter:blur(8px); border:1px solid rgba(0,0,0,.06); border-radius:10px; padding:10px 12px; color:#0f172a; }
+  .card h3 { margin:0 0 2px 0; font-size:14px; font-weight:600; }
+  .card p { margin:0; font-size:12px; opacity:.8; }
+  .badge { display:inline-block; padding:2px 8px; border-radius:999px; background:#e2e8f0; font-size:12px; margin-left:6px; }
+  .btn { appearance:none; border:1px solid rgba(0,0,0,.12); background:#fff; padding:6px 10px; border-radius:8px; font-size:12px; cursor:pointer; }
+  .btn:active { transform:translateY(1px); }
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <h1>天气 · iOS 风格</h1>
+    <div class="meta">
+      <span id="loc">—</span>
+      <span class="badge" id="tod">白天</span>
+      <button class="btn" id="demo">演示</button>
+    </div>
+  </header>
+
+  <div id="canvas-host">
+    <div id="scene"></div>
+    <div class="card">
+      <h3 id="wx">加载中…</h3>
+      <p id="desc">固定镜头 · 实时天气渲染</p>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import * as THREE from 'three';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { AfterimagePass } from 'three/addons/postprocessing/AfterimagePass.js';
+
+/** ============ 统一 API （你从扩展/后台传入的数据直接喂这里） ============
+ * applyWeatherState({
+ *   timestamp?: string,
+ *   location?: { lat:number, lon:number, name?:string },
+ *   sun?: { azimuthDeg:number, altitudeDeg:number },
+ *   weather?: {
+ *     code: "clear"|"cloudy"|"rain"|"snow"|"thunderstorm",
+ *     precipIntensity?: number,             // 0..1
+ *     precipType?: "rain"|"snow",
+ *     visibilityKm?: number,                // 0.2..40+
+ *     windSpeedMps?: number, windGustMps?: number, windDirDeg?: number,
+ *     thunderProb?: number                  // 0..1
+ *   },
+ *   air?: { aqi?:number, pm25?:number, pm10?:number },
+ *   env?: { isNight?: boolean }
+ * })
+ * =================================================================== */
+
+let container, renderer, scene, camera, composer, bloomPass, afterimagePass;
+let ambientLight, directionalLight, lightningLight;
+let ground, groundMat;
+let cloudGroup, cloud1, cloud2, cloudTex;
+let isRaining=false, isSnowing=false, currentTime='day';
+let particleCount=5000, particleSpeed=10, lightBase=0.6;
+let rainMesh, RAIN_COUNT=0, BASE_SPEED=10, POS, VEL, _M,_Q,_V,_S;
+let splashMesh, SPL_LIFE, SPL_POS; const MAX_SPL=800, SPL_DT=0.25;
+let WIND_BASE=0.8, WIND_GUST=0.6, WIND_DIR=90, WIND_VEC=new THREE.Vector3(1,0,0);
+let lightningTimer=0, lightningActive=false, lightningBias=0.015;
+
+const PRESET = {
+  day:   { fogCol:0x8ec5df, fogDen:0.03,  amb:0.8,  dir:1.0,  dirCol:0xffffff, bgTop:0x87CEEB, bgBot:0xE0F7FA, bloom:0.45 },
+  night: { fogCol:0x0b1a2e, fogDen:0.055, amb:0.22, dir:0.55, dirCol:0x8080ff, bgTop:0x0A192F, bgBot:0x112240, bloom:0.75 },
+  cloudy:{ fogCol:0x6d93a7, fogDen:0.045, amb:0.6,  dir:0.7,  dirCol:0xeceff1, bgTop:0x7fa7bd, bgBot:0xa8c4d3, bloom:0.50 }
+};
+
+init();
+bootstrap();
+
+function init(){
+  container = document.getElementById('scene');
+  // renderer（扩展里建议考虑关闭抗锯齿以省电，或根据机器能力开关）
+  renderer = new THREE.WebGLRenderer({ antialias:true, alpha:true, powerPreference:'high-performance' });
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  renderer.setSize(innerWidth, innerHeight);
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.physicallyCorrectLights = true;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.0;
+  container.appendChild(renderer.domElement);
+
+  scene = new THREE.Scene();
+  scene.fog = new THREE.FogExp2(0x8ec5df, 0.03);
+
+  // 固定镜头（平视，无控件）
+  camera = new THREE.PerspectiveCamera(55, innerWidth/innerHeight, 0.1, 220);
+  camera.position.set(0,1.7,7);
+  camera.lookAt(0,1.4,0);
+
+  // 灯光
+  ambientLight = new THREE.AmbientLight(0xffffff, lightBase);
+  scene.add(ambientLight);
+  directionalLight = new THREE.DirectionalLight(0xffffff, 1.0);
+  directionalLight.position.set(3,5,2);
+  scene.add(directionalLight);
+  lightningLight = new THREE.PointLight(0xffffff, 0, 50);
+  lightningLight.position.set(0, 8, -6);
+  scene.add(lightningLight);
+
+  // 地面（湿度可调）
+  groundMat = new THREE.MeshStandardMaterial({ color:0x9aa0a6, roughness:0.95, metalness:0.0 });
+  ground = new THREE.Mesh(new THREE.PlaneGeometry(200,200), groundMat);
+  ground.rotation.x = -Math.PI/2;
+  ground.receiveShadow = true;
+  scene.add(ground);
+
+  // 云层
+  initClouds();
+
+  // 后期
+  composer = new EffectComposer(renderer);
+  composer.addPass(new RenderPass(scene, camera));
+  bloomPass = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.55, 0.85, 0.85);
+  composer.addPass(bloomPass);
+  afterimagePass = new AfterimagePass(); afterimagePass.uniforms['damp'].value = 0.92;
+  composer.addPass(afterimagePass);
+
+  // 溅射池
+  initSplashPool();
+
+  // 默认：雨 + 白天
+  setupRain();
+  applyEnv('day');
+
+  addEventListener('resize', onResize);
+  requestAnimationFrame(loop);
+}
+
+function onResize(){
+  camera.aspect = innerWidth/innerHeight; camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+  composer.setSize(innerWidth, innerHeight);
+}
+
+function loop(t){
+  requestAnimationFrame(loop);
+  const now = performance.now(), dt =  Math.min(0.05, (loop._last? (now-loop._last):16)/1000); loop._last = now;
+
+  // 阵风与风向
+  const gust = noise1D(now*0.0007);
+  const base = WIND_BASE + gust*WIND_GUST;
+  const wd = THREE.MathUtils.degToRad((WIND_DIR+180)%360); // 来自 → 去向
+  WIND_VEC.set(Math.sin(wd),0,Math.cos(wd)).multiplyScalar(base);
+
+  // 闪电调度（夜雨）
+  lightningTimer -= dt;
+  if (lightningTimer<=0 && currentTime==='night' && isRaining){
+    if (Math.random() < lightningBias){ triggerLightning(); lightningTimer = 3 + Math.random()*5; }
+    else { lightningTimer = 0.5 + Math.random()*1.5; }
+  }
+
+  updateRain(dt);
+  updateSnow(dt);
+  updateSplash(dt);
+  updateClouds();
+
+  composer.render();
+}
+
+/* ---------- 环境与过渡 ---------- */
+function setBG(topHex, botHex){
+  const top = '#'+topHex.toString(16).padStart(6,'0');
+  const bot = '#'+botHex.toString(16).padStart(6,'0');
+  document.getElementById('app').style.background = `linear-gradient(to bottom, ${top}, ${bot})`;
+}
+function tween({from,to,dur=1200,onUpdate,onComplete}){
+  const s=performance.now();
+  (function step(){
+    const t = Math.min(1,(performance.now()-s)/dur);
+    const e = t<0.5?2*t*t:-1+(4-2*t)*t;
+    const v={}; for(const k in from) v[k]=from[k]+(to[k]-from[k])*e;
+    onUpdate && onUpdate(v);
+    if(t<1) requestAnimationFrame(step); else onComplete && onComplete();
+  })();
+}
+function lerpColor(a,b,t){
+  const ar=(a>>16)&255, ag=(a>>8)&255, ab=a&255,
+        br=(b>>16)&255, bg=(b>>8)&255, bb=b&255;
+  return ((ar+(br-ar)*t)<<16)|((ag+(bg-ag)*t)<<8)|(ab+(bb-ab)*t);
+}
+function applyEnv(kind){
+  const p = PRESET[kind]; if(!p) return;
+  const fog = scene.fog || (scene.fog = new THREE.FogExp2(p.fogCol,p.fogDen));
+  const from = { amb:ambientLight.intensity, dir:directionalLight.intensity, fogDen:fog.density, t:0 };
+  const prev = applyEnv._last? PRESET[applyEnv._last] : p;
+  const fromCol = { fog:prev.fogCol, dir:prev.dirCol, bgTop:prev.bgTop, bgBot:prev.bgBot };
+  if(!applyEnv._last){
+    fog.color.setHex(p.fogCol); fog.density=p.fogDen;
+    ambientLight.intensity=p.amb; directionalLight.intensity=p.dir; directionalLight.color.setHex(p.dirCol);
+    setBG(p.bgTop,p.bgBot); bloomPass.strength = p.bloom; applyEnv._last=kind; return;
+  }
+  tween({
+    from, to:{ amb:p.amb, dir:p.dir, fogDen:p.fogDen, t:1 },
+    onUpdate:(v)=>{
+      ambientLight.intensity=v.amb; directionalLight.intensity=v.dir; fog.density=v.fogDen;
+      fog.color.setHex(lerpColor(fromCol.fog,p.fogCol,v.t));
+      directionalLight.color.setHex(lerpColor(fromCol.dir,p.dirCol,v.t));
+      const top = lerpColor(fromCol.bgTop,p.bgTop,v.t), bot = lerpColor(fromCol.bgBot,p.bgBot,v.t);
+      setBG(top, bot); bloomPass.strength = PRESET[kind].bloom;
+    }, onComplete:()=>{ applyEnv._last=kind; }
+  });
+}
+
+/* ---------- 太阳位置（方位/高度） ---------- */
+function setSunByAzAlt(azimuthDeg, altitudeDeg, opt={}){
+  const azi=THREE.MathUtils.degToRad(azimuthDeg), alt=THREE.MathUtils.degToRad(altitudeDeg);
+  const dir = new THREE.Vector3(Math.sin(azi)*Math.cos(alt), Math.sin(alt), Math.cos(azi)*Math.cos(alt)).normalize();
+  const dist = opt.distance ?? 50;
+  directionalLight.position.copy(dir.multiplyScalar(dist));
+
+  const altN = THREE.MathUtils.clamp((altitudeDeg+6)/96,0,1);
+  directionalLight.intensity = THREE.MathUtils.lerp(0.15, 1.1, altN);
+  directionalLight.color.copy(new THREE.Color(0xffddbb)).lerp(new THREE.Color(0xffffff), altN);
+  ambientLight.intensity = THREE.MathUtils.lerp(0.18, Math.max(0.6, lightBase), altN);
+}
+
+/* ---------- 地面湿度 ---------- */
+function setWetness(intensity){
+  const t = THREE.MathUtils.clamp(intensity,0,1);
+  groundMat.roughness = 0.95 - 0.5*t;
+  groundMat.metalness = 0.00 + 0.25*t;
+  groundMat.color.copy(new THREE.Color(0x9aa0a6)).lerp(new THREE.Color(0x8fa3b6), 0.6*t);
+  groundMat.needsUpdate = true;
+}
+
+/* ---------- 云层 ---------- */
+function initClouds(){
+  cloudTex = makeNoiseTex(256);
+  cloudGroup = new THREE.Group(); scene.add(cloudGroup);
+  const geo = new THREE.PlaneGeometry(400,400);
+
+  const m1 = new THREE.MeshBasicMaterial({ color:0xffffff, map:cloudTex, transparent:true, opacity:0.35, depthWrite:false });
+  m1.map.wrapS=m1.map.wrapT=THREE.RepeatWrapping; m1.map.repeat.set(3,3);
+  cloud1 = new THREE.Mesh(geo,m1); cloud1.rotation.x=-Math.PI/2; cloud1.position.y=12; cloudGroup.add(cloud1);
+
+  const m2 = new THREE.MeshBasicMaterial({ color:0xe8edf2, map:cloudTex, transparent:true, opacity:0.5, depthWrite:false });
+  m2.map.wrapS=m2.map.wrapT=THREE.RepeatWrapping; m2.map.repeat.set(2,2);
+  cloud2 = new THREE.Mesh(geo,m2); cloud2.rotation.x=-Math.PI/2; cloud2.position.y=9; cloudGroup.add(cloud2);
+
+  cloudGroup.visible = false;
+}
+function makeNoiseTex(size=256){
+  const c=document.createElement('canvas'); c.width=c.height=size; const ctx=c.getContext('2d');
+  const img=ctx.createImageData(size,size);
+  function addLayer(alpha){
+    for(let i=0;i<img.data.length;i+=4){
+      const v=Math.random()*255;
+      img.data[i]=img.data[i]*(1-alpha)+v*alpha;
+      img.data[i+1]=img.data[i+1]*(1-alpha)+v*alpha;
+      img.data[i+2]=img.data[i+2]*(1-alpha)+v*alpha;
+      img.data[i+3]=255;
+    }
+  }
+  addLayer(0.6); addLayer(0.25); addLayer(0.15);
+  ctx.putImageData(img,0,0);
+  const tex = new THREE.CanvasTexture(c); tex.needsUpdate=true; tex.wrapS=tex.wrapT=THREE.RepeatWrapping; return tex;
+}
+function updateClouds(){
+  if(!cloudGroup || !cloudGroup.visible) return;
+  cloud1.material.map.offset.x += 0.0006;
+  cloud2.material.map.offset.x -= 0.0010;
+  cloud1.material.map.offset.y += 0.0002;
+}
+
+/* ---------- 溅射 ---------- */
+function initSplashPool(){
+  const g=new THREE.CircleGeometry(0.12,12); g.rotateX(-Math.PI/2);
+  const m=new THREE.MeshBasicMaterial({ color:0xaad4ff, transparent:true, opacity:0.45, depthWrite:false });
+  splashMesh = new THREE.InstancedMesh(g,m,MAX_SPL); splashMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage); scene.add(splashMesh);
+  SPL_LIFE=new Float32Array(MAX_SPL); SPL_POS=new Float32Array(MAX_SPL*3);
+  const M=new THREE.Matrix4(); for(let i=0;i<MAX_SPL;i++){ M.makeScale(0.0001,0.0001,0.0001); splashMesh.setMatrixAt(i,M); SPL_LIFE[i]=0; }
+  splashMesh.instanceMatrix.needsUpdate=true;
+}
+function spawnSplash(x,z){
+  for(let i=0;i<MAX_SPL;i++){ if(SPL_LIFE[i]<=0){ SPL_LIFE[i]=SPL_DT; const ix=i*3; SPL_POS[ix]=x; SPL_POS[ix+1]=0.01; SPL_POS[ix+2]=z; return; } }
+}
+function updateSplash(dt){
+  if(!splashMesh) return;
+  const M=new THREE.Matrix4(), P=new THREE.Vector3(), Q=new THREE.Quaternion(), S=new THREE.Vector3();
+  for(let i=0;i<MAX_SPL;i++){
+    if(SPL_LIFE[i]>0){
+      SPL_LIFE[i]-=dt; const t = 1-(SPL_LIFE[i]/SPL_DT), scale=0.3+t*1.2;
+      const ix=i*3; P.set(SPL_POS[ix],SPL_POS[ix+1],SPL_POS[ix+2]); Q.identity(); S.set(scale,1,scale); M.compose(P,Q,S);
+    } else { M.makeScale(0.0001,0.0001,0.0001); }
+    splashMesh.setMatrixAt(i,M);
+  }
+  splashMesh.instanceMatrix.needsUpdate=true;
+}
+
+/* ---------- 雨（InstancedMesh + 渐隐端） ---------- */
+function setupRain(){
+  if(rainMesh) scene.remove(rainMesh); if(snowMesh) scene.remove(snowMesh);
+  isRaining=true; isSnowing=false; document.getElementById('wx').textContent='下雨'; if(cloudGroup) cloudGroup.visible=false;
+  RAIN_COUNT = particleCount; BASE_SPEED = particleSpeed;
+
+  // 细长雨丝 + 顶点色（上端实、下端透明）
+  const g = new THREE.PlaneGeometry(0.03, 0.6);
+  const cols=[]; for(let i=0;i<g.attributes.position.count;i++){ const y=g.attributes.position.getY(i); const t=(y+0.3)/0.6; const a=THREE.MathUtils.lerp(1,0,t); cols.push(1,1,1,a); }
+  g.setAttribute('color', new THREE.Float32BufferAttribute(cols,4));
+  const m = new THREE.MeshBasicMaterial({ color:0xaad4ff, vertexColors:true, transparent:true, depthWrite:false, side:THREE.DoubleSide });
+  rainMesh = new THREE.InstancedMesh(g,m,RAIN_COUNT); rainMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage); scene.add(rainMesh);
+
+  POS=new Float32Array(RAIN_COUNT*3); VEL=new Float32Array(RAIN_COUNT*3);
+  _M=new THREE.Matrix4(); _Q=new THREE.Quaternion(); _V=new THREE.Vector3(); _S=new THREE.Vector3();
+  const reset=(i,y=THREE.MathUtils.randFloat(15,45))=>{ const ix=i*3; POS[ix]=THREE.MathUtils.randFloatSpread(100); POS[ix+1]=y; POS[ix+2]=THREE.MathUtils.randFloatSpread(100); VEL[ix+1]=-THREE.MathUtils.randFloat(BASE_SPEED*0.8,BASE_SPEED*1.2)*0.8; };
+  for(let i=0;i<RAIN_COUNT;i++) reset(i);
+
+  setWetness(Math.min(1,(particleCount-800)/19200));
+}
+function updateRain(dt){
+  if(!isRaining || !rainMesh) return;
+  const now=performance.now();
+  for(let i=0;i<RAIN_COUNT;i++){
+    const ix=i*3;
+    const sway = Math.sin((POS[ix+1]+ix)*0.12 + now*0.002) * 0.35;
+    const vx = WIND_VEC.x + sway*0.2, vz = WIND_VEC.z + sway*0.1;
+
+    POS[ix]+=vx*dt; POS[ix+1]+=VEL[ix+1]*dt; POS[ix+2]+=vz*dt;
+    if(POS[ix+1]<0){ spawnSplash(POS[ix],POS[ix+2]); POS[ix]=THREE.MathUtils.randFloatSpread(100); POS[ix+1]=THREE.MathUtils.randFloat(30,45); POS[ix+2]=THREE.MathUtils.randFloatSpread(100); VEL[ix+1]=-THREE.MathUtils.randFloat(BASE_SPEED*0.8,BASE_SPEED*1.2)*0.8; }
+
+    const spd=Math.sqrt(vx*vx+VEL[ix+1]*VEL[ix+1]+vz*vz), len=THREE.MathUtils.clamp(spd*0.06,0.4,1.6);
+    _V.set(vx,VEL[ix+1],vz).normalize(); _Q.setFromUnitVectors(new THREE.Vector3(0,1,0), _V); _S.set(1, len/0.6, 1);
+    _M.compose(new THREE.Vector3(POS[ix],POS[ix+1],POS[ix+2]), _Q, _S); rainMesh.setMatrixAt(i,_M);
+  }
+  rainMesh.instanceMatrix.needsUpdate=true;
+}
+
+/* ---------- 雪（Points，带风漂） ---------- */
+let snowMesh=null;
+function setupSnow(){
+  if(rainMesh) scene.remove(rainMesh); if(snowMesh) scene.remove(snowMesh);
+  isRaining=false; isSnowing=true; document.getElementById('wx').textContent='下雪'; if(cloudGroup) cloudGroup.visible=false;
+
+  const g=new THREE.BufferGeometry(), count=particleCount;
+  const pos=new Float32Array(count*3), vel=new Float32Array(count*3);
+  for(let i=0;i<count;i++){ const i3=i*3; pos[i3]=THREE.MathUtils.randFloatSpread(100); pos[i3+1]=Math.random()*50; pos[i3+2]=THREE.MathUtils.randFloatSpread(100);
+    vel[i3]=(Math.random()-0.5)*0.05*particleSpeed; vel[i3+1]=-(0.05+Math.random()*0.1)*particleSpeed; vel[i3+2]=(Math.random()-0.5)*0.05*particleSpeed; }
+  g.setAttribute('position', new THREE.BufferAttribute(pos,3)); g.setAttribute('velocity', new THREE.BufferAttribute(vel,3));
+  const m=new THREE.PointsMaterial({ color:0xffffff, size:0.12, transparent:true, opacity:0.95 }); snowMesh=new THREE.Points(g,m); scene.add(snowMesh);
+  setWetness(0.15);
+}
+function updateSnow(dt){
+  if(!isSnowing || !snowMesh) return;
+  const p=snowMesh.geometry.attributes.position.array, v=snowMesh.geometry.attributes.velocity.array;
+  for(let i=0;i<p.length;i+=3){
+    p[i]+= (v[i] + WIND_VEC.x*0.6)*dt; p[i+1]+= v[i+1]*dt; p[i+2]+= (v[i+2] + WIND_VEC.z*0.6)*dt;
+    if(p[i+1]<0){ p[i]=THREE.MathUtils.randFloatSpread(100); p[i+1]=50; p[i+2]=THREE.MathUtils.randFloatSpread(100); }
+  }
+  snowMesh.geometry.attributes.position.needsUpdate=true;
+}
+
+/* ---------- 其它天气 ---------- */
+function setupClear(){ if(rainMesh) scene.remove(rainMesh); if(snowMesh) scene.remove(snowMesh); isRaining=false; isSnowing=false; document.getElementById('wx').textContent='晴朗'; if(cloudGroup) cloudGroup.visible=false; setWetness(0); }
+function setupCloudy(){ if(rainMesh) scene.remove(rainMesh); if(snowMesh) scene.remove(snowMesh); isRaining=false; isSnowing=false; document.getElementById('wx').textContent='多云'; if(!cloudGroup) initClouds(); cloudGroup.visible=true; applyEnv('cloudy'); setWetness(0.15); }
+
+/* ---------- 昼夜 ---------- */
+function setDay(){ currentTime='day'; document.getElementById('tod').textContent='白天'; applyEnv('day'); }
+function setNight(){ currentTime='night'; document.getElementById('tod').textContent='夜晚'; applyEnv('night'); }
+
+/* ---------- 闪电 ---------- */
+function triggerLightning(){
+  if(currentTime!=='night'||!isRaining||lightningActive) return;
+  lightningActive=true; const oriI=directionalLight.intensity, oriC=directionalLight.color.getHex();
+  directionalLight.intensity=oriI*2.2; directionalLight.color.set(0xcfe8ff); lightningLight.intensity=4.5; bloomPass.strength=0.95;
+  setTimeout(()=>{ directionalLight.intensity=oriI; directionalLight.color.setHex(oriC); lightningLight.intensity=0; bloomPass.strength=PRESET[currentTime].bloom; lightningActive=false; }, 140+Math.random()*120);
+}
+
+/* ---------- 工具 ---------- */
+function noise1D(t){ return Math.sin(t)*0.5 + Math.sin(t*0.5)*0.35 + Math.sin(t*0.13)*0.15; }
+
+/* ---------- 统一 API ---------- */
+function applyWeatherState(state){
+  const w=state.weather||{}, s=state.sun||{}, a=state.air||{}, env=state.env||{};
+  if(state.location){ document.getElementById('loc').textContent = state.location.name ? `${state.location.name}` : `${state.location.lat?.toFixed?.(2)||'-'}, ${state.location.lon?.toFixed?.(2)||'-'}`; }
+
+  // 太阳/昼夜
+  if(s.azimuthDeg!=null && s.altitudeDeg!=null) setSunByAzAlt(s.azimuthDeg, s.altitudeDeg);
+  const night = env.isNight!=null ? env.isNight : (s.altitudeDeg!=null ? (s.altitudeDeg<=-3) : (currentTime==='night'));
+  night? setNight() : setDay();
+
+  // 天气类型
+  const code=(w.code||'').toLowerCase();
+  if(code==='rain' || (w.precipType==='rain' && (w.precipIntensity??0)>0)) setupRain();
+  else if(code==='snow' || (w.precipType==='snow' && (w.precipIntensity??0)>0)) setupSnow();
+  else if(code==='cloudy') setupCloudy();
+  else setupClear();
+
+  // 强度→数量/速度/湿地
+  const inten=THREE.MathUtils.clamp(w.precipIntensity??0,0,1);
+  particleCount = Math.round(800 + inten*19200);
+  particleSpeed = Math.round(6 + inten*14);
+  if(isRaining) setupRain(); if(isSnowing) setupSnow();
+  setWetness(inten);
+
+  // 风
+  if(w.windSpeedMps!=null){ WIND_BASE=w.windSpeedMps*0.15; WIND_GUST=Math.max(WIND_BASE*0.8,(w.windGustMps??0)*0.12); }
+  if(w.windDirDeg!=null){ WIND_DIR = w.windDirDeg % 360; }
+
+  // 能见度
+  if(scene.fog && w.visibilityKm!=null){
+    const vis=THREE.MathUtils.clamp(w.visibilityKm,0.2,40);
+    scene.fog.density = THREE.MathUtils.mapLinear(40-vis,0,39.8,0.012,0.08);
+  }
+
+  // AQI
+  if(scene.fog && (a.aqi!=null || a.pm25!=null)){
+    const score = Math.min(500, a.aqi ?? (a.pm25*2 || 0));
+    const t = THREE.MathUtils.clamp((score-50)/200, 0, 1);
+    scene.fog.density *= (1+0.7*t);
+    scene.fog.color.copy(new THREE.Color(0x8ec5df)).lerp(new THREE.Color(0x6c7a86), t);
+    renderer.toneMappingExposure = 1.0 - 0.12*t;
+  }
+
+  // 雷暴概率
+  lightningBias = 0.015 + ((code==='thunderstorm'?0.4:0) + (w.thunderProb??0))*0.05;
+}
+window.applyWeatherState = applyWeatherState; // 暴露给扩展/注入脚本调用
+
+/* ---------- 启动逻辑（Chrome 扩展里你会改成真实数据） ---------- */
+function bootstrap(){
+  // 1) 扩展示例：监听后台发送的天气
+  // chrome.runtime?.onMessage?.addListener((msg)=>{ if(msg.type==='weather.state') applyWeatherState(msg.payload); });
+
+  // 2) 地理位置（可选）：尝试获取定位以显示城市名称（真实项目用你后台+权限获取）
+  if(navigator.geolocation){
+    navigator.geolocation.getCurrentPosition(
+      pos=>{
+        const {latitude:lat, longitude:lon} = pos.coords;
+        document.getElementById('loc').textContent = `${lat.toFixed(2)}, ${lon.toFixed(2)}`;
+      },
+      ()=>{}
+    );
+  }
+
+  // 3) 演示按钮：快速切换一轮状态（你可以删掉）
+  document.getElementById('demo').addEventListener('click', ()=>{
+    applyWeatherState({
+      timestamp:new Date().toISOString(),
+      location:{ name:'演示城市' },
+      sun:{ azimuthDeg:110, altitudeDeg:30 },
+      weather:{ code:'cloudy', precipIntensity:0.15, visibilityKm:15, windSpeedMps:2.5, windDirDeg:80 },
+      air:{ aqi:70 }, env:{ isNight:false }
+    });
+    setTimeout(()=>applyWeatherState({
+      location:{ name:'演示城市' },
+      sun:{ azimuthDeg:165, altitudeDeg:2 },
+      weather:{ code:'rain', precipIntensity:0.8, visibilityKm:4, windSpeedMps:6, windGustMps:10, windDirDeg:120, thunderProb:0.6 },
+      air:{ aqi:110 }, env:{ isNight:true }
+    }), 3500);
+  });
+}
+</script>
+</body>
+</html>

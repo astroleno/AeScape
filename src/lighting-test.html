@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>光照测试</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background: #000;
+      font-family: Arial, sans-serif;
+    }
+    
+    #container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+    }
+    
+    #controls {
+      position: fixed;
+      top: 10px;
+      left: 10px;
+      background: rgba(255, 255, 255, 0.9);
+      padding: 15px;
+      border-radius: 8px;
+      z-index: 1000;
+    }
+    
+    .control-group {
+      margin-bottom: 10px;
+    }
+    
+    label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: bold;
+    }
+    
+    input[type="range"] {
+      width: 200px;
+    }
+    
+    .value {
+      display: inline-block;
+      width: 50px;
+      margin-left: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div id="container"></div>
+  
+  <div id="controls">
+    <h3>光照测试</h3>
+    
+    <div class="control-group">
+      <label>太阳高度角:</label>
+      <input type="range" id="altitude" min="-90" max="90" value="30" step="1">
+      <span class="value" id="altitudeValue">30</span>
+    </div>
+    
+    <div class="control-group">
+      <label>太阳方位角:</label>
+      <input type="range" id="azimuth" min="0" max="360" value="180" step="1">
+      <span class="value" id="azimuthValue">180</span>
+    </div>
+    
+    <div class="control-group">
+      <label>光照强度:</label>
+      <input type="range" id="intensity" min="0" max="3" value="1" step="0.1">
+      <span class="value" id="intensityValue">1.0</span>
+    </div>
+    
+    <div class="control-group">
+      <label>时间 (小时):</label>
+      <input type="range" id="time" min="0" max="24" value="12" step="0.5">
+      <span class="value" id="timeValue">12.0</span>
+    </div>
+  </div>
+  
+  <script src="../three.min.js"></script>
+  <script src="full-weather-engine.js"></script>
+  <script>
+    let weatherEngine;
+    
+    function init() {
+      try {
+        // 使用天气引擎
+        const container = document.getElementById('container');
+        weatherEngine = new FullWeatherEngine(container);
+        
+        console.log('Weather engine initialized successfully');
+        
+        // 等待引擎初始化完成
+        setTimeout(() => {
+          setupControls();
+          console.log('Lighting test controls setup complete');
+        }, 2000);
+        
+      } catch (error) {
+        console.error('Failed to initialize weather engine:', error);
+        // 如果天气引擎失败，回退到原始实现
+        fallbackInit();
+      }
+    }
+    
+    function fallbackInit() {
+      console.log('Using fallback Three.js implementation');
+      // 原始的Three.js实现作为备选方案
+      scene = new THREE.Scene();
+      
+      camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+      camera.position.set(0, 0, 5);
+      
+      renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setClearColor(0x000000);
+      document.getElementById('container').appendChild(renderer.domElement);
+      
+      ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+      scene.add(ambientLight);
+      
+      directionalLight = new THREE.DirectionalLight(0xffffff, 1.0);
+      directionalLight.position.set(0, 100, 0);
+      scene.add(directionalLight);
+      
+      const skyGeometry = new THREE.SphereGeometry(500, 32, 32);
+      const skyMaterial = new THREE.MeshBasicMaterial({
+        color: 0x87CEEB,
+        side: THREE.BackSide,
+        transparent: true,
+        opacity: 0.8
+      });
+      skySphere = new THREE.Mesh(skyGeometry, skyMaterial);
+      scene.add(skySphere);
+      
+      createTestObjects();
+      setupControls();
+      animate();
+    }
+    
+    function createTestObjects() {
+      // 创建地面
+      const groundGeometry = new THREE.PlaneGeometry(100, 100);
+      const groundMaterial = new THREE.MeshLambertMaterial({ color: 0x808080 });
+      const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+      ground.rotation.x = -Math.PI / 2;
+      ground.position.y = -50;
+      scene.add(ground);
+      
+      // 创建一些立方体
+      const cubeGeometry = new THREE.BoxGeometry(10, 10, 10);
+      const cubeMaterial = new THREE.MeshLambertMaterial({ color: 0xff0000 });
+      
+      for (let i = 0; i < 5; i++) {
+        const cube = new THREE.Mesh(cubeGeometry, cubeMaterial);
+        cube.position.set(
+          (Math.random() - 0.5) * 100,
+          (Math.random() - 0.5) * 50,
+          (Math.random() - 0.5) * 100
+        );
+        scene.add(cube);
+      }
+      
+      // 创建球体
+      const sphereGeometry = new THREE.SphereGeometry(5, 16, 16);
+      const sphereMaterial = new THREE.MeshLambertMaterial({ color: 0x00ff00 });
+      
+      for (let i = 0; i < 3; i++) {
+        const sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
+        sphere.position.set(
+          (Math.random() - 0.5) * 100,
+          (Math.random() - 0.5) * 50,
+          (Math.random() - 0.5) * 100
+        );
+        scene.add(sphere);
+      }
+    }
+    
+    function setupControls() {
+      const altitudeSlider = document.getElementById('altitude');
+      const azimuthSlider = document.getElementById('azimuth');
+      const intensitySlider = document.getElementById('intensity');
+      const timeSlider = document.getElementById('time');
+      
+      const altitudeValue = document.getElementById('altitudeValue');
+      const azimuthValue = document.getElementById('azimuthValue');
+      const intensityValue = document.getElementById('intensityValue');
+      const timeValue = document.getElementById('timeValue');
+      
+      function updateLighting() {
+        const altitude = parseFloat(altitudeSlider.value);
+        const azimuth = parseFloat(azimuthSlider.value);
+        const intensity = parseFloat(intensitySlider.value);
+        const time = parseFloat(timeSlider.value);
+        
+        // 更新显示值
+        altitudeValue.textContent = altitude;
+        azimuthValue.textContent = azimuth;
+        intensityValue.textContent = intensity.toFixed(1);
+        timeValue.textContent = time.toFixed(1);
+        
+        // 优先使用天气引擎
+        if (weatherEngine && weatherEngine.controlParams) {
+          weatherEngine.controlParams.sunAltitude = altitude;
+          weatherEngine.controlParams.sunAzimuth = azimuth;
+          weatherEngine.controlParams.timeOfDayHours = time;
+          
+          if (weatherEngine.directionalLight) {
+            weatherEngine.directionalLight.intensity = intensity;
+          }
+          
+          weatherEngine.updateSunPosition();
+          weatherEngine.calculateSunPositionFromTime();
+          weatherEngine.applyControlParams();
+          
+          console.log('Weather engine lighting updated:', {
+            altitude: altitude,
+            azimuth: azimuth,
+            intensity: intensity,
+            time: time
+          });
+        } else if (directionalLight) {
+          // 回退到原始实现
+          const altitudeRad = THREE.MathUtils.degToRad(altitude);
+          const azimuthRad = THREE.MathUtils.degToRad(azimuth);
+          
+          const x = Math.cos(altitudeRad) * Math.sin(azimuthRad);
+          const y = Math.sin(altitudeRad);
+          const z = Math.cos(altitudeRad) * Math.cos(azimuthRad);
+          
+          directionalLight.position.set(x * 200, y * 200, z * 200);
+          directionalLight.intensity = intensity;
+          
+          // 根据时间调整颜色
+          let color;
+          if (time >= 6 && time <= 18) {
+            if (altitude < 10) {
+              color = new THREE.Color(0xff6b35); // 日出日落
+            } else if (altitude < 30) {
+              color = new THREE.Color(0xffd23f); // 早晨傍晚
+            } else {
+              color = new THREE.Color(0xffffff); // 正午
+            }
+          } else {
+            color = new THREE.Color(0x8080ff); // 夜晚
+          }
+          
+          directionalLight.color.copy(color);
+          
+          // 更新天空颜色
+          let skyColor;
+          if (time >= 6 && time <= 18) {
+            if (altitude < 10) {
+              skyColor = 0xff7f50; // 珊瑚色
+            } else if (altitude < 30) {
+              skyColor = 0x87ceeb; // 天蓝色
+            } else {
+              skyColor = 0x4169e1; // 皇家蓝
+            }
+          } else {
+            skyColor = 0x191970; // 午夜蓝
+          }
+          
+          if (skySphere && skySphere.material) {
+            skySphere.material.color.setHex(skyColor);
+          }
+          
+          console.log('Fallback lighting updated:', {
+            altitude: altitude,
+            azimuth: azimuth,
+            intensity: intensity,
+            time: time
+          });
+        }
+      }
+      
+      altitudeSlider.addEventListener('input', updateLighting);
+      azimuthSlider.addEventListener('input', updateLighting);
+      intensitySlider.addEventListener('input', updateLighting);
+      timeSlider.addEventListener('input', updateLighting);
+      
+      // 初始化
+      updateLighting();
+    }
+    
+    function animate() {
+      requestAnimationFrame(animate);
+      
+      // 如果天气引擎可用，使用其渲染器
+      if (weatherEngine && weatherEngine.renderer && weatherEngine.scene && weatherEngine.camera) {
+        weatherEngine.renderer.render(weatherEngine.scene, weatherEngine.camera);
+      } else if (renderer && scene && camera) {
+        // 回退到原始实现
+        renderer.render(scene, camera);
+      }
+    }
+    
+    // 窗口大小调整
+    window.addEventListener('resize', () => {
+      if (weatherEngine && weatherEngine.camera && weatherEngine.renderer) {
+        weatherEngine.camera.aspect = window.innerWidth / window.innerHeight;
+        weatherEngine.camera.updateProjectionMatrix();
+        weatherEngine.renderer.setSize(window.innerWidth, window.innerHeight);
+      } else if (camera && renderer) {
+        // 回退到原始实现
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      }
+    });
+    
+    // 启动
+    init();
+  </script>
+</body>
+</html>

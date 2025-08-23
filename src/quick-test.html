@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>天气引擎快速测试</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: Arial, sans-serif;
+      background: linear-gradient(135deg, #87CEEB, #E0F7FA);
+      min-height: 100vh;
+      overflow: hidden;
+    }
+    
+    #weather-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+    }
+    
+    .debug-panel {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      background: rgba(0, 0, 0, 0.8);
+      color: white;
+      padding: 15px;
+      border-radius: 10px;
+      font-size: 12px;
+      z-index: 1000;
+      max-width: 300px;
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+    
+    .debug-panel h3 {
+      margin: 0 0 10px 0;
+      color: #87CEEB;
+    }
+    
+    .debug-item {
+      margin: 5px 0;
+      padding: 3px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    }
+    
+    .debug-item:last-child {
+      border-bottom: none;
+    }
+    
+    .success {
+      color: #4ade80;
+    }
+    
+    .error {
+      color: #f87171;
+    }
+    
+    .loading {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(0, 0, 0, 0.8);
+      color: white;
+      padding: 20px;
+      border-radius: 10px;
+      z-index: 1001;
+    }
+    
+    .controls {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: rgba(255, 255, 255, 0.9);
+      padding: 15px;
+      border-radius: 10px;
+      z-index: 1000;
+      min-width: 200px;
+    }
+    
+    .control-group {
+      margin: 10px 0;
+    }
+    
+    .control-group label {
+      display: block;
+      font-size: 12px;
+      margin-bottom: 5px;
+      color: #333;
+    }
+    
+    .control-group input {
+      width: 100%;
+    }
+    
+    .control-group button {
+      width: 100%;
+      padding: 8px;
+      margin: 2px 0;
+      border: 1px solid #ddd;
+      background: white;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+    
+    .control-group button:hover {
+      background: #f0f0f0;
+    }
+    
+    .control-group button.active {
+      background: #87CEEB;
+      color: white;
+    }
+  </style>
+  <script src="../three.min.js"></script>
+</head>
+<body>
+  <div id="weather-container"></div>
+  
+  <div class="loading" id="loading">正在加载天气引擎...</div>
+  
+  <div class="debug-panel">
+    <h3>🔍 调试信息</h3>
+    <div id="debug-info">
+      <div class="debug-item">正在初始化...</div>
+    </div>
+  </div>
+  
+  <div class="controls">
+    <div class="control-group">
+      <label>太阳高度角</label>
+      <input type="range" id="altitude" min="-90" max="90" value="30" step="1">
+      <span id="altitude-value">30°</span>
+    </div>
+    
+    <div class="control-group">
+      <label>太阳方位角</label>
+      <input type="range" id="azimuth" min="0" max="360" value="180" step="1">
+      <span id="azimuth-value">180°</span>
+    </div>
+    
+    <div class="control-group">
+      <label>光照强度</label>
+      <input type="range" id="intensity" min="0" max="3" value="1" step="0.1">
+      <span id="intensity-value">1.0</span>
+    </div>
+    
+    <div class="control-group">
+      <button id="btn-clear">☀️ 晴天</button>
+      <button id="btn-cloudy">☁️ 多云</button>
+      <button id="btn-rain">🌧️ 雨天</button>
+      <button id="btn-snow">❄️ 雪天</button>
+    </div>
+  </div>
+  
+  <script src="full-weather-engine.js"></script>
+  <script>
+    function debug(message, type = 'info') {
+      const debugInfo = document.getElementById('debug-info');
+      const div = document.createElement('div');
+      div.className = `debug-item ${type}`;
+      div.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+      debugInfo.appendChild(div);
+      console.log(message);
+      
+      // 保持最多20条记录
+      while (debugInfo.children.length > 20) {
+        debugInfo.removeChild(debugInfo.firstChild);
+      }
+    }
+    
+    document.addEventListener('DOMContentLoaded', function() {
+      debug('开始初始化天气引擎...');
+      
+      try {
+        const container = document.getElementById('weather-container');
+        const engine = new FullWeatherEngine(container);
+        
+        debug('天气引擎实例创建成功');
+        
+        // 等待引擎初始化完成
+        setTimeout(() => {
+          const loading = document.getElementById('loading');
+          if (loading) {
+            loading.style.display = 'none';
+          }
+          
+          // 检查引擎状态
+          debug(`场景: ${engine.scene ? '✅' : '❌'}`, engine.scene ? 'success' : 'error');
+          debug(`相机: ${engine.camera ? '✅' : '❌'}`, engine.camera ? 'success' : 'error');
+          debug(`渲染器: ${engine.renderer ? '✅' : '❌'}`, engine.renderer ? 'success' : 'error');
+          debug(`方向光: ${engine.directionalLight ? '✅' : '❌'}`, engine.directionalLight ? 'success' : 'error');
+          debug(`环境光: ${engine.ambientLight ? '✅' : '❌'}`, engine.ambientLight ? 'success' : 'error');
+          debug(`云层: ${engine.cloudGroup ? '✅' : '❌'}`, engine.cloudGroup ? 'success' : 'error');
+          
+          // 设置控制器
+          if (engine.controlParams) {
+            debug('控制参数可用', 'success');
+            
+            // 太阳高度角控制
+            const altitudeSlider = document.getElementById('altitude');
+            const altitudeValue = document.getElementById('altitude-value');
+            altitudeSlider.addEventListener('input', (e) => {
+              const value = parseFloat(e.target.value);
+              engine.controlParams.sunAltitude = value;
+              engine.updateSunPosition();
+              altitudeValue.textContent = value + '°';
+              debug(`太阳高度角: ${value}°`);
+            });
+            
+            // 太阳方位角控制
+            const azimuthSlider = document.getElementById('azimuth');
+            const azimuthValue = document.getElementById('azimuth-value');
+            azimuthSlider.addEventListener('input', (e) => {
+              const value = parseFloat(e.target.value);
+              engine.controlParams.sunAzimuth = value;
+              engine.updateSunPosition();
+              azimuthValue.textContent = value + '°';
+              debug(`太阳方位角: ${value}°`);
+            });
+            
+            // 光照强度控制
+            const intensitySlider = document.getElementById('intensity');
+            const intensityValue = document.getElementById('intensity-value');
+            intensitySlider.addEventListener('input', (e) => {
+              const value = parseFloat(e.target.value);
+              if (engine.directionalLight) {
+                engine.directionalLight.intensity = value;
+                intensityValue.textContent = value.toFixed(1);
+                debug(`光照强度: ${value.toFixed(1)}`);
+              }
+            });
+            
+            // 天气按钮
+            const weatherButtons = {
+              'btn-clear': 'clear',
+              'btn-cloudy': 'cloudy',
+              'btn-rain': 'rain',
+              'btn-snow': 'snow'
+            };
+            
+            Object.entries(weatherButtons).forEach(([btnId, weatherType]) => {
+              const btn = document.getElementById(btnId);
+              btn.addEventListener('click', () => {
+                engine.controlParams.weatherType = weatherType;
+                engine.updateWeatherType();
+                debug(`切换到${weatherType}天气`);
+                
+                // 更新按钮状态
+                Object.keys(weatherButtons).forEach(id => {
+                  document.getElementById(id).classList.remove('active');
+                });
+                btn.classList.add('active');
+              });
+            });
+            
+            // 默认选中晴天
+            document.getElementById('btn-clear').classList.add('active');
+            
+            debug('所有控制器设置完成', 'success');
+          } else {
+            debug('控制参数不可用', 'error');
+          }
+          
+        }, 2000);
+        
+      } catch (error) {
+        debug(`创建天气引擎失败: ${error.message}`, 'error');
+        console.error(error);
+        
+        const loading = document.getElementById('loading');
+        if (loading) {
+          loading.style.display = 'none';
+        }
+      }
+    });
+  </script>
+</body>
+</html>

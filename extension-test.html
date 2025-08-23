@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>扩展测试</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    .success { color: green; }
+    .error { color: red; }
+    .info { color: blue; }
+  </style>
+</head>
+<body>
+  <h1>扩展功能测试</h1>
+  <div id="test-results"></div>
+  
+  <script>
+    function log(message, type = 'info') {
+      const div = document.createElement('div');
+      div.className = type;
+      div.textContent = new Date().toLocaleTimeString() + ': ' + message;
+      document.getElementById('test-results').appendChild(div);
+      console.log(message);
+    }
+    
+    log('开始测试扩展功能...', 'info');
+    
+    // 测试 Chrome API
+    if (typeof chrome !== 'undefined' && chrome.runtime) {
+      log('✓ Chrome runtime 可用', 'success');
+      
+      chrome.runtime.sendMessage({type: 'weather.getCurrent'}, function(response) {
+        if (response) {
+          log('✓ 后台服务响应正常', 'success');
+        } else {
+          log('✗ 后台服务无响应', 'error');
+        }
+      });
+    } else {
+      log('✗ Chrome runtime 不可用', 'error');
+    }
+    
+    // 测试 DOM 元素
+    log('✓ DOM 已加载', 'success');
+    
+    // 测试 fetch API
+    fetch('https://api.open-meteo.com/v1/forecast?latitude=31.2304&longitude=121.4737&current_weather=true')
+      .then(response => response.json())
+      .then(data => {
+        if (data.current_weather) {
+          log('✓ API 请求成功: ' + data.current_weather.temperature + '°C', 'success');
+        } else {
+          log('✗ API 响应异常', 'error');
+        }
+      })
+      .catch(error => {
+        log('✗ API 请求失败: ' + error.message, 'error');
+      });
+    
+    log('测试完成', 'info');
+  </script>
+</body>
+</html>

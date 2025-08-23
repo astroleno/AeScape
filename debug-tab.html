@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>新标签页测试</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      overflow: hidden;
+      background: linear-gradient(to bottom, #87CEEB, #E0F7FA);
+      margin: 0;
+      padding: 0;
+    }
+    
+    #weather-container {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+    }
+    
+    .weather-info {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      background: rgba(255, 255, 255, 0.9);
+      backdrop-filter: blur(10px);
+      padding: 15px 20px;
+      border-radius: 12px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      z-index: 10;
+    }
+    
+    .weather-info h2 {
+      font-size: 18px;
+      color: #1f2937;
+      margin-bottom: 8px;
+    }
+    
+    .weather-info .temperature {
+      font-size: 32px;
+      font-weight: bold;
+      color: #111827;
+    }
+    
+    .weather-info .location {
+      font-size: 14px;
+      color: #6b7280;
+      margin-top: 4px;
+    }
+    
+    .weather-info .description {
+      font-size: 14px;
+      color: #4b5563;
+      margin-top: 2px;
+    }
+    
+    .loading {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+      color: #6b7280;
+      z-index: 5;
+    }
+    
+    .loading::after {
+      content: '';
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 2px solid #e5e7eb;
+      border-top: 2px solid #3b82f6;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-left: 10px;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    .debug-info {
+      position: absolute;
+      bottom: 20px;
+      left: 20px;
+      background: rgba(0, 0, 0, 0.8);
+      color: white;
+      padding: 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      max-width: 400px;
+      font-family: monospace;
+    }
+  </style>
+</head>
+<body>
+  <div id="weather-container"></div>
+  
+  <div class="weather-info" id="weather-info" style="display: none;">
+    <h2 id="weather-location">加载中...</h2>
+    <div class="temperature" id="weather-temperature">--°</div>
+    <div class="location" id="weather-location-detail">获取位置中...</div>
+    <div class="description" id="weather-description">--</div>
+  </div>
+  
+  <div class="loading" id="loading">正在加载天气数据</div>
+  
+  <div class="debug-info" id="debug-info">
+    <div>调试信息将显示在这里...</div>
+  </div>
+  
+  <script>
+    // 简化的天气引擎类
+    class SimpleWeatherEngine {
+      constructor(container) {
+        this.container = container;
+        this.currentWeather = null;
+        this.currentLocation = null;
+        this.debugInfo = document.getElementById('debug-info');
+        this.addDebug('SimpleWeatherEngine constructor called');
+        this.init();
+      }
+      
+      addDebug(message) {
+        const timestamp = new Date().toLocaleTimeString();
+        const debugDiv = document.createElement('div');
+        debugDiv.textContent = `[${timestamp}] ${message}`;
+        this.debugInfo.appendChild(debugDiv);
+        this.debugInfo.scrollTop = this.debugInfo.scrollHeight;
+        console.log(message);
+      }
+      
+      async init() {
+        this.addDebug('=== SimpleWeatherEngine init started ===');
+        
+        try {
+          this.addDebug('Step 1: Getting location...');
+          await this.getCurrentLocation();
+          this.addDebug('Step 2: Location obtained');
+          
+          this.addDebug('Step 3: Loading weather data...');
+          await this.loadWeatherData();
+          this.addDebug('Step 4: Weather data loaded');
+          
+          this.addDebug('Step 5: Setting up message listener...');
+          this.setupMessageListener();
+          this.addDebug('Step 6: Message listener setup');
+          
+          this.addDebug('Step 7: Setting up data refresh...');
+          this.setupDataRefresh();
+          this.addDebug('Step 8: Data refresh setup');
+          
+          this.addDebug('=== SimpleWeatherEngine init completed ===');
+          
+        } catch (error) {
+          this.addDebug(`ERROR: 初始化失败: ${error.message}`);
+          this.showError('初始化失败，请刷新页面重试');
+        }
+      }
+      
+      async getCurrentLocation() {
+        this.addDebug('getCurrentLocation called');
+        
+        // 直接使用默认位置（上海）避免权限问题
+        this.currentLocation = { 
+          lat: 31.2304, 
+          lon: 121.4737,
+          name: '上海'
+        };
+        
+        this.addDebug(`Using default location: ${JSON.stringify(this.currentLocation)}`);
+        return this.currentLocation;
+      }
+      
+      async loadWeatherData() {
+        this.addDebug('=== loadWeatherData called ===');
+        this.addDebug(`Location: ${JSON.stringify(this.currentLocation, null, 2)}`);
+        
+        if (!this.currentLocation) {
+          this.addDebug('ERROR: No location available for weather data');
+          this.showError('无法获取位置信息');
+          return;
+        }
+        
+        try {
+          // 尝试从后台获取天气数据
+          this.addDebug('Step 1: Trying to get weather data from background...');
+          
+          try {
+            this.addDebug('Step 2: Sending message to background...');
+            const response = await chrome.runtime.sendMessage({
+              type: 'weather.getCurrent'
+            });
+            
+            this.addDebug(`Step 3: Background response received: ${JSON.stringify(response, null, 2)}`);
+            
+            if (response && response.data) {
+              this.addDebug('Step 4: Using background weather data');
+              this.currentWeather = response.data;
+              this.updateUI();
+              this.hideLoading();
+              this.addDebug('Step 5: Background data processing completed');
+              return; // 成功获取数据，直接返回
+            } else {
+              this.addDebug('Step 4: Background returned no data, fetching directly');
+            }
+          } catch (backgroundError) {
+            this.addDebug(`Step 3: Background service unavailable: ${backgroundError.message}`);
+          }
+          
+          // 如果后台没有数据或不可用，直接获取
+          this.addDebug('Step 6: Fetching weather data directly...');
+          await this.fetchWeatherData();
+          this.addDebug('Step 7: Direct weather data fetch completed');
+          this.hideLoading();
+          
+        } catch (error) {
+          this.addDebug(`Step 8: Weather data loading failed: ${error.message}`);
+          this.showError('天气数据加载失败');
+        }
+      }
+      
+      async fetchWeatherData() {
+        this.addDebug('fetchWeatherData called');
+        
+        if (!this.currentLocation || !this.currentLocation.lat || !this.currentLocation.lon) {
+          this.addDebug('ERROR: No valid location for direct fetch');
+          return;
+        }
+        
+        try {
+          const params = new URLSearchParams({
+            latitude: this.currentLocation.lat.toFixed(4),
+            longitude: this.currentLocation.lon.toFixed(4),
+            current_weather: 'true',
+            hourly: 'temperature_2m,relativehumidity_2m,apparent_temperature,precipitation_probability,precipitation,weathercode,cloudcover,visibility,windspeed_10m,winddirection_10m,uv_index',
+            daily: 'sunrise,sunset',
+            timezone: 'auto'
+          });
+
+          const url = `https://api.open-meteo.com/v1/forecast?${params}`;
+          this.addDebug(`Fetching from: ${url}`);
+
+          const response = await fetch(url);
+          const data = await response.json();
+          
+          this.addDebug(`API response status: ${response.status}`);
+          
+          if (!response.ok) {
+            throw new Error(`API Error: ${data.reason || 'Unknown error'}`);
+          }
+
+          // 转换数据格式
+          const current = data.current_weather;
+          const hourly = data.hourly;
+          const currentHour = new Date().getHours();
+          
+          // 计算太阳位置（简化）
+          const sunPosition = this.calculateSunPosition(
+            this.currentLocation.lat,
+            this.currentLocation.lon
+          );
+          
+          this.currentWeather = {
+            location: {
+              ...this.currentLocation,
+              name: this.currentLocation.name || '当前位置',
+              timezone: data.timezone || 'Asia/Shanghai'
+            },
+            sun: {
+              altitudeDeg: sunPosition.altitudeDeg,
+              azimuthDeg: sunPosition.azimuthDeg
+            },
+            weather: {
+              code: this.mapWeatherCode(current.weathercode),
+              precipIntensity: (hourly.precipitation[currentHour] || 0) / 10,
+              precipType: (current.temperature || 20) < 0 ? 'snow' : 'rain',
+              visibilityKm: hourly.visibility[currentHour] || 10,
+              windSpeedMps: current.windspeed_10m || 0,
+              windDirDeg: current.winddirection_10m || 0,
+              thunderProb: current.weathercode >= 95 ? 0.6 : 0
+            },
+            env: {
+              isNight: !sunPosition.isDay,
+              temperature: current.temperature || 20
+            },
+            timestamp: Date.now()
+          };
+          
+          this.addDebug(`Weather data processed: ${JSON.stringify(this.currentWeather, null, 2)}`);
+          this.updateUI();
+          
+        } catch (error) {
+          this.addDebug(`Direct fetch failed: ${error.message}`);
+          this.showError('天气数据获取失败');
+        }
+      }
+      
+      calculateSunPosition(lat, lon, date = new Date()) {
+        // 简化的太阳位置计算
+        const dayOfYear = Math.floor((date - new Date(date.getFullYear(), 0, 0)) / 86400000);
+        const declination = 23.45 * Math.sin((360 * (284 + dayOfYear) / 365) * Math.PI / 180);
+        const hourAngle = 15 * (date.getHours() + date.getMinutes() / 60 - 12);
+        
+        const altitudeRad = Math.asin(
+          Math.sin(declination * Math.PI / 180) * Math.sin(lat * Math.PI / 180) +
+          Math.cos(declination * Math.PI / 180) * Math.cos(lat * Math.PI / 180) * Math.cos(hourAngle * Math.PI / 180)
+        );
+        
+        const altitudeDeg = altitudeRad * 180 / Math.PI;
+        
+        // 计算日出日落
+        const sunriseHour = 6 + Math.sin((dayOfYear - 80) * Math.PI / 182) * 2;
+        const sunsetHour = 18 + Math.sin((dayOfYear - 80) * Math.PI / 182) * 2;
+        const currentHour = date.getHours() + date.getMinutes() / 60;
+        
+        return {
+          altitudeDeg: Math.round(altitudeDeg * 100) / 100,
+          azimuthDeg: 0, // 简化计算
+          isDay: currentHour >= sunriseHour && currentHour <= sunsetHour
+        };
+      }
+      
+      mapWeatherCode(code) {
+        const codeMap = {
+          0: 'clear', 1: 'clear', 2: 'cloudy', 3: 'cloudy',
+          45: 'fog', 48: 'fog',
+          51: 'rain', 53: 'rain', 55: 'rain',
+          56: 'rain', 57: 'rain',
+          61: 'rain', 63: 'rain', 65: 'rain',
+          66: 'snow', 67: 'snow',
+          71: 'snow', 73: 'snow', 75: 'snow', 77: 'snow',
+          80: 'rain', 81: 'rain', 82: 'rain',
+          85: 'snow', 86: 'snow',
+          95: 'thunderstorm', 96: 'thunderstorm', 99: 'thunderstorm'
+        };
+        return codeMap[code] || 'clear';
+      }
+      
+      updateUI() {
+        this.addDebug('updateUI called');
+        
+        if (!this.currentWeather) {
+          this.addDebug('ERROR: No weather data to update UI');
+          return;
+        }
+        
+        const temp = Math.round(this.currentWeather.env.temperature);
+        const locationName = this.currentWeather.location.name;
+        const weatherCode = this.currentWeather.weather.code;
+        
+        this.addDebug(`Updating UI - Temp: ${temp}°, Location: ${locationName}, Weather: ${weatherCode}`);
+        
+        const weatherDescriptions = {
+          clear: '晴朗',
+          cloudy: '多云',
+          rain: '下雨',
+          snow: '下雪',
+          fog: '有雾',
+          thunderstorm: '雷暴'
+        };
+        
+        const locationElement = document.getElementById('weather-location');
+        const tempElement = document.getElementById('weather-temperature');
+        const locationDetailElement = document.getElementById('weather-location-detail');
+        const descriptionElement = document.getElementById('weather-description');
+        
+        if (locationElement) {
+          locationElement.textContent = locationName;
+          this.addDebug('Location element updated');
+        }
+        if (tempElement) {
+          tempElement.textContent = `${temp}°`;
+          this.addDebug('Temperature element updated');
+        }
+        if (locationDetailElement) {
+          locationDetailElement.textContent = 
+            `${this.currentLocation.lat.toFixed(2)}, ${this.currentLocation.lon.toFixed(2)}`;
+          this.addDebug('Location detail element updated');
+        }
+        if (descriptionElement) {
+          descriptionElement.textContent = weatherDescriptions[weatherCode] || '未知';
+          this.addDebug('Description element updated');
+        }
+      }
+      
+      setupMessageListener() {
+        this.addDebug('setupMessageListener called');
+        
+        if (chrome.runtime && chrome.runtime.onMessage) {
+          try {
+            chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+              if (message.type === 'weather.updated') {
+                this.currentWeather = message.data;
+                this.updateUI();
+              }
+            });
+            this.addDebug('Message listener setup successfully');
+          } catch (error) {
+            this.addDebug(`Failed to setup message listener: ${error.message}`);
+          }
+        } else {
+          this.addDebug('chrome.runtime not available');
+        }
+      }
+      
+      setupDataRefresh() {
+        this.addDebug('setupDataRefresh called - setting up 30min interval');
+        
+        // 每 30 分钟刷新一次数据
+        setInterval(() => {
+          this.loadWeatherData();
+        }, 30 * 60 * 1000);
+      }
+      
+      hideLoading() {
+        this.addDebug('=== hideLoading called ===');
+        
+        const loading = document.getElementById('loading');
+        this.addDebug(`Loading element found: ${!!loading}`);
+        if (loading) {
+          loading.style.display = 'none';
+          this.addDebug('Loading element hidden');
+        }
+        
+        const weatherInfo = document.getElementById('weather-info');
+        this.addDebug(`Weather info element found: ${!!weatherInfo}`);
+        if (weatherInfo) {
+          weatherInfo.style.display = 'block';
+          this.addDebug('Weather info element shown');
+        }
+      }
+      
+      showError(message) {
+        this.addDebug(`showError called: ${message}`);
+        
+        const loading = document.getElementById('loading');
+        if (loading) {
+          loading.innerHTML = message;
+          loading.style.display = 'block';
+        }
+      }
+    }
+
+    // 启动应用
+    document.addEventListener('DOMContentLoaded', () => {
+      console.log('DOM Content Loaded, starting WeatherApp...');
+      const debugInfo = document.getElementById('debug-info');
+      debugInfo.innerHTML = '<div>=== 应用启动 ===</div>';
+      
+      try {
+        const app = new SimpleWeatherEngine(document.body);
+        console.log('WeatherApp started successfully');
+      } catch (error) {
+        console.error('Failed to start WeatherApp:', error);
+        debugInfo.innerHTML += `<div style="color: red;">ERROR: ${error.message}</div>`;
+      }
+    });
+  </script>
+</body>
+</html>

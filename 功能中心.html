@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AeScape 功能中心</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', '微软雅黑', Arial, sans-serif;
+      background: linear-gradient(135deg, #87CEEB, #E0F7FA);
+      min-height: 100vh;
+      padding: 20px;
+      color: #2c1810;
+    }
+    
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      background: rgba(255, 255, 255, 0.95);
+      border-radius: 16px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+      overflow: hidden;
+    }
+    
+    .header {
+      background: linear-gradient(135deg, #87CEEB, #E0F7FA);
+      padding: 40px;
+      text-align: center;
+      color: #2c1810;
+    }
+    
+    .header h1 {
+      font-size: 32px;
+      font-weight: 700;
+      margin-bottom: 10px;
+    }
+    
+    .header p {
+      font-size: 18px;
+      opacity: 0.8;
+    }
+    
+    .content {
+      padding: 40px;
+    }
+    
+    .function-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 20px;
+      margin-bottom: 30px;
+    }
+    
+    .function-card {
+      background: rgba(255, 255, 255, 0.8);
+      border-radius: 12px;
+      padding: 25px;
+      border: 1px solid rgba(44, 24, 16, 0.1);
+      transition: all 0.3s;
+      cursor: pointer;
+    }
+    
+    .function-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15);
+      border-color: #87CEEB;
+    }
+    
+    .function-icon {
+      font-size: 48px;
+      margin-bottom: 15px;
+      text-align: center;
+    }
+    
+    .function-title {
+      font-size: 20px;
+      font-weight: 600;
+      margin-bottom: 10px;
+      color: #2c1810;
+      text-align: center;
+    }
+    
+    .function-description {
+      font-size: 14px;
+      color: #666;
+      text-align: center;
+      line-height: 1.5;
+    }
+    
+    .settings-section {
+      background: rgba(255, 255, 255, 0.9);
+      border-radius: 12px;
+      padding: 25px;
+      border: 1px solid rgba(44, 24, 16, 0.1);
+      text-align: center;
+    }
+    
+    .settings-section h3 {
+      font-size: 18px;
+      margin-bottom: 15px;
+      color: #2c1810;
+    }
+    
+    .settings-section p {
+      font-size: 14px;
+      color: #666;
+      margin-bottom: 20px;
+    }
+    
+    .btn {
+      background: linear-gradient(135deg, #87CEEB, #E0F7FA);
+      color: #2c1810;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+      text-decoration: none;
+      display: inline-block;
+    }
+    
+    .btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(135, 206, 235, 0.3);
+    }
+    
+    .footer {
+      padding: 20px;
+      text-align: center;
+      background: rgba(255, 255, 255, 0.8);
+      color: #666;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🌤️ AeScape 功能中心</h1>
+      <p>探索天景扩展的全部功能</p>
+    </div>
+    
+    <div class="content">
+      <div class="function-grid">
+        <div class="function-card" onclick="window.open('src/weather-engine-control.html', '_blank')">
+          <div class="function-icon">🌤️</div>
+          <div class="function-title">天气引擎控制中心</div>
+          <div class="function-description">
+            完整的天气场景控制，包括太阳位置、天气效果、相机视角等高级功能
+          </div>
+        </div>
+        
+        <div class="function-card" onclick="window.open('src/lighting-test.html', '_blank')">
+          <div class="function-icon">💡</div>
+          <div class="function-title">光照系统测试</div>
+          <div class="function-description">
+            专门测试和调整光照效果，包括太阳位置、光照强度、环境光等参数
+          </div>
+        </div>
+        
+        <div class="function-card" onclick="window.open('src/quick-test.html', '_blank')">
+          <div class="function-icon">🔧</div>
+          <div class="function-title">功能测试页面</div>
+          <div class="function-description">
+            快速测试天气引擎的各个功能组件，包含实时调试信息
+          </div>
+        </div>
+        
+        <div class="function-card" onclick="window.open('src/weather-test.html', '_blank')">
+          <div class="function-icon">🌦️</div>
+          <div class="function-title">天气效果测试</div>
+          <div class="function-description">
+            自动化测试各种天气效果，验证雨雪云雾等天气系统的正常运行
+          </div>
+        </div>
+      </div>
+      
+      <div class="settings-section">
+        <h3>⚙️ 系统设置</h3>
+        <p>配置位置信息、API设置、功能开关等系统参数</p>
+        <a href="settings.html" class="btn">打开设置页面</a>
+      </div>
+    </div>
+    
+    <div class="footer">
+      <p>AeScape v1.0.0 - 让数字生活多一份宁静与美感</p>
+    </div>
+  </div>
+</body>
+</html>

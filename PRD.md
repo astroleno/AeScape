@@ -76,8 +76,10 @@ MVP 目标：
 核心框架	原生 JS/HTML/CSS	保持轻量与高性能
 构建工具	Vite	模块化开发、打包、热更新
 天气数据	OpenWeatherMap API	免费额度足够，JSON 格式标准
-动画渲染	WebGL (Three.js)	高质量动态天气效果（云雾/雨雪）
-备用渲染	CSS Animation	用于轻量级模式（雪花/云漂移）
+动画渲染	Three.js	成熟生态系统，快速实现高质量天气效果
+天空渲染	THREE.Sky	内置天空着色器，支持动态光照
+云朵效果	分层广告牌 (Layered Billboards)	性能优秀，视觉效果好
+粒子系统	THREE.Points	高效实现雨雪效果
 UI 字体	Google Fonts	现代感强，简洁清晰
 图标库	Feather / Tabler	轻量统一的 SVG 图标，用于天气悬浮球
 规范	ESLint + Prettier	保证代码风格一致

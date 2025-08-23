@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>渲染诊断工具</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 20px;
+      font-family: Arial, sans-serif;
+      background: #f0f0f0;
+    }
+    .diagnostic-container {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+    }
+    .test-button {
+      background: #007bff;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 4px;
+      cursor: pointer;
+      margin: 5px;
+    }
+    .test-button:hover {
+      background: #0056b3;
+    }
+    #weather-container {
+      width: 800px;
+      height: 600px;
+      border: 2px solid #ccc;
+      margin: 20px 0;
+      border-radius: 8px;
+      background: #000;
+    }
+    #diagnostic-output {
+      background: #1e1e1e;
+      color: #fff;
+      padding: 15px;
+      border-radius: 4px;
+      font-family: monospace;
+      font-size: 12px;
+      max-height: 400px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+    }
+    .status-indicator {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      margin-right: 8px;
+    }
+    .status-ok { background: #28a745; }
+    .status-error { background: #dc3545; }
+    .status-warning { background: #ffc107; }
+  </style>
+</head>
+<body>
+  <h1>🔧 渲染诊断工具</h1>
+  
+  <div class="diagnostic-container">
+    <h2>诊断控制</h2>
+    <button class="test-button" onclick="initEngine()">初始化引擎</button>
+    <button class="test-button" onclick="runFullDiagnostic()">完整诊断</button>
+    <button class="test-button" onclick="testRendering()">测试渲染</button>
+    <button class="test-button" onclick="forceRenderUpdate()">强制渲染更新</button>
+    <button class="test-button" onclick="clearOutput()">清除输出</button>
+  </div>
+  
+  <div id="weather-container"></div>
+  
+  <div class="diagnostic-container">
+    <h2>实时测试控制</h2>
+    <div style="margin: 10px 0;">
+      <label>太阳高度角: </label>
+      <input type="range" id="sun-altitude" min="-90" max="90" value="30" step="1" style="width: 200px;">
+      <span id="sun-altitude-value">30°</span>
+    </div>
+    <div style="margin: 10px 0;">
+      <label>云透明度: </label>
+      <input type="range" id="cloud-opacity" min="0" max="1" value="0.4" step="0.01" style="width: 200px;">
+      <span id="cloud-opacity-value">0.40</span>
+    </div>
+    <div style="margin: 10px 0;">
+      <label>雾浓度: </label>
+      <input type="range" id="fog-density" min="0" max="0.2" value="0.03" step="0.001" style="width: 200px;">
+      <span id="fog-density-value">0.030</span>
+    </div>
+  </div>
+  
+  <div class="diagnostic-container">
+    <h2>诊断输出</h2>
+    <div id="diagnostic-output">等待诊断...</div>
+  </div>
+  
+  <script src="../three.min.js"></script>
+  <script src="full-weather-engine.js"></script>
+  <script>
+    let weatherEngine;
+    const diagnosticOutput = document.getElementById('diagnostic-output');
+    
+    function log(message, type = 'info') {
+      const timestamp = new Date().toLocaleTimeString();
+      const indicator = type === 'error' ? '❌' : type === 'warning' ? '⚠️' : '✅';
+      diagnosticOutput.textContent += `[${timestamp}] ${indicator} ${message}\n`;
+      diagnosticOutput.scrollTop = diagnosticOutput.scrollHeight;
+      console.log(message);
+    }
+    
+    function clearOutput() {
+      diagnosticOutput.textContent = '';
+    }
+    
+    async function initEngine() {
+      clearOutput();
+      log('=== 初始化天气引擎 ===');
+      
+      try {
+        const container = document.getElementById('weather-container');
+        weatherEngine = new FullWeatherEngine(container);
+        
+        // 等待初始化完成
+        await weatherEngine.initializationPromise;
+        
+        log('✅ 天气引擎初始化完成');
+        
+        // 添加到全局作用域
+        window.engine = weatherEngine;
+        window.THREE = THREE;
+        
+        // 设置滑动条监听器
+        setupSliderListeners();
+        
+        log('✅ 引擎已添加到 window.engine，可在控制台访问');
+        
+      } catch (error) {
+        log('❌ 初始化失败: ' + error.message, 'error');
+        console.error(error);
+      }
+    }
+    
+    function setupSliderListeners() {
+      // 太阳高度角
+      const altitudeSlider = document.getElementById('sun-altitude');
+      altitudeSlider.oninput = function() {
+        const value = parseFloat(this.value);
+        document.getElementById('sun-altitude-value').textContent = value + '°';
+        
+        log(`太阳高度角: ${value}°`);
+        testParameterChange('sunAltitude', value);
+      };
+      
+      // 云透明度
+      const opacitySlider = document.getElementById('cloud-opacity');
+      opacitySlider.oninput = function() {
+        const value = parseFloat(this.value);
+        document.getElementById('cloud-opacity-value').textContent = value.toFixed(2);
+        
+        log(`云透明度: ${value}`);
+        testParameterChange('cloudOpacity', value);
+      };
+      
+      // 雾浓度
+      const fogSlider = document.getElementById('fog-density');
+      fogSlider.oninput = function() {
+        const value = parseFloat(this.value);
+        document.getElementById('fog-density-value').textContent = value.toFixed(3);
+        
+        log(`雾浓度: ${value}`);
+        testParameterChange('fogDensity', value);
+      };
+    }
+    
+    function testParameterChange(param, value) {
+      if (!weatherEngine || !weatherEngine.controlParams) {
+        log('❌ 引擎未初始化', 'error');
+        return;
+      }
+      
+      try {
+        const oldValue = weatherEngine.controlParams[param];
+        weatherEngine.controlParams[param] = value;
+        
+        log(`参数 ${param}: ${oldValue} → ${value}`);
+        
+        // 记录调用前状态
+        log('调用 applyControlParams 前...');
+        
+        weatherEngine.applyControlParams();
+        
+        log('✅ applyControlParams 调用完成');
+        
+        // 检查渲染状态
+        setTimeout(() => {
+          checkRenderingStatus();
+        }, 100);
+        
+      } catch (error) {
+        log(`❌ 参数更新失败: ${error.message}`, 'error');
+        console.error(error);
+      }
+    }
+    
+    function checkRenderingStatus() {
+      if (!weatherEngine) return;
+      
+      log('=== 渲染状态检查 ===');
+      
+      // 检查关键对象
+      log(`场景: ${!!weatherEngine.scene}`);
+      log(`相机: ${!!weatherEngine.camera}`);
+      log(`渲染器: ${!!weatherEngine.renderer}`);
+      log(`天空球: ${!!weatherEngine.skySphere}`);
+      log(`方向光: ${!!weatherEngine.directionalLight}`);
+      log(`环境光: ${!!weatherEngine.ambientLight}`);
+      log(`云组: ${!!weatherEngine.cloudGroup}`);
+      
+      // 检查材质属性
+      if (weatherEngine.skySphere && weatherEngine.skySphere.material) {
+        const mat = weatherEngine.skySphere.material;
+        log(`天空球颜色: #${mat.color.getHexString()}`);
+        log(`天空球透明度: ${mat.opacity}`);
+      }
+      
+      if (weatherEngine.directionalLight) {
+        log(`方向光强度: ${weatherEngine.directionalLight.intensity}`);
+        log(`方向光颜色: #${weatherEngine.directionalLight.color.getHexString()}`);
+        log(`方向光位置: (${weatherEngine.directionalLight.position.x.toFixed(1)}, ${weatherEngine.directionalLight.position.y.toFixed(1)}, ${weatherEngine.directionalLight.position.z.toFixed(1)})`);
+      }
+      
+      if (weatherEngine.ambientLight) {
+        log(`环境光强度: ${weatherEngine.ambientLight.intensity}`);
+        log(`环境光颜色: #${weatherEngine.ambientLight.color.getHexString()}`);
+      }
+      
+      if (weatherEngine.scene && weatherEngine.scene.fog) {
+        log(`雾浓度: ${weatherEngine.scene.fog.density}`);
+      }
+      
+      if (weatherEngine.cloud1 && weatherEngine.cloud1.material) {
+        log(`云1透明度: ${weatherEngine.cloud1.material.opacity}`);
+      }
+      
+      if (weatherEngine.cloud2 && weatherEngine.cloud2.material) {
+        log(`云2透明度: ${weatherEngine.cloud2.material.opacity}`);
+      }
+    }
+    
+    function runFullDiagnostic() {
+      clearOutput();
+      log('=== 完整诊断开始 ===');
+      
+      if (!weatherEngine) {
+        log('❌ 请先初始化引擎', 'error');
+        return;
+      }
+      
+      // 1. 检查引擎基础结构
+      log('1. 检查引擎基础结构...');
+      log(`   容器: ${!!weatherEngine.container}`);
+      log(`   控制参数: ${!!weatherEngine.controlParams}`);
+      log(`   初始化Promise: ${!!weatherEngine.initializationPromise}`);
+      
+      // 2. 检查Three.js核心对象
+      log('2. 检查Three.js核心对象...');
+      log(`   场景: ${!!weatherEngine.scene}`);
+      log(`   相机: ${!!weatherEngine.camera}`);
+      log(`   渲染器: ${!!weatherEngine.renderer}`);
+      log(`   合成器: ${!!weatherEngine.composer}`);
+      
+      // 3. 检查光源
+      log('3. 检查光源...');
+      log(`   环境光: ${!!weatherEngine.ambientLight}`);
+      log(`   方向光: ${!!weatherEngine.directionalLight}`);
+      log(`   闪电光: ${!!weatherEngine.lightningLight}`);
+      
+      // 4. 检查天空和云
+      log('4. 检查天空和云...');
+      log(`   天空球: ${!!weatherEngine.skySphere}`);
+      log(`   云组: ${!!weatherEngine.cloudGroup}`);
+      log(`   云1: ${!!weatherEngine.cloud1}`);
+      log(`   云2: ${!!weatherEngine.cloud2}`);
+      
+      // 5. 检查方法可用性
+      log('5. 检查方法可用性...');
+      const methods = ['applyControlParams', 'updateSunPosition', 'updateSkyColor', 'updateWeatherType'];
+      methods.forEach(method => {
+        log(`   ${method}: ${typeof weatherEngine[method]}`);
+      });
+      
+      // 6. 检查当前参数值
+      log('6. 检查当前参数值...');
+      if (weatherEngine.controlParams) {
+        Object.keys(weatherEngine.controlParams).forEach(key => {
+          log(`   ${key}: ${weatherEngine.controlParams[key]}`);
+        });
+      }
+      
+      log('✅ 完整诊断完成');
+    }
+    
+    function testRendering() {
+      clearOutput();
+      log('=== 测试渲染功能 ===');
+      
+      if (!weatherEngine) {
+        log('❌ 请先初始化引擎', 'error');
+        return;
+      }
+      
+      try {
+        // 测试1: 强制更新太阳位置
+        log('测试1: 强制更新太阳位置');
+        weatherEngine.controlParams.sunAltitude = 60;
+        weatherEngine.controlParams.sunAzimuth = 90;
+        weatherEngine.updateSunPosition();
+        
+        // 测试2: 强制更新天空颜色
+        log('测试2: 强制更新天空颜色');
+        weatherEngine.controlParams.timeOfDayHours = 15;
+        weatherEngine.updateSkyColor();
+        
+        // 测试3: 强制应用所有参数
+        log('测试3: 强制应用所有参数');
+        weatherEngine.applyControlParams();
+        
+        // 测试4: 手动触发渲染
+        log('测试4: 手动触发渲染');
+        if (weatherEngine.renderer && weatherEngine.scene && weatherEngine.camera) {
+          weatherEngine.renderer.render(weatherEngine.scene, weatherEngine.camera);
+          log('✅ 手动渲染完成');
+        } else {
+          log('❌ 渲染所需对象不完整', 'error');
+        }
+        
+        log('✅ 渲染测试完成');
+        
+      } catch (error) {
+        log(`❌ 渲染测试失败: ${error.message}`, 'error');
+        console.error(error);
+      }
+    }
+    
+    function forceRenderUpdate() {
+      log('=== 强制渲染更新 ===');
+      
+      if (!weatherEngine) {
+        log('❌ 请先初始化引擎', 'error');
+        return;
+      }
+      
+      try {
+        // 强制更新所有材质
+        if (weatherEngine.skySphere && weatherEngine.skySphere.material) {
+          weatherEngine.skySphere.material.needsUpdate = true;
+          log('✅ 天空球材质标记为需要更新');
+        }
+        
+        if (weatherEngine.directionalLight) {
+          weatherEngine.directionalLight.needsUpdate = true;
+          log('✅ 方向光标记为需要更新');
+        }
+        
+        if (weatherEngine.ambientLight) {
+          weatherEngine.ambientLight.needsUpdate = true;
+          log('✅ 环境光标记为需要更新');
+        }
+        
+        // 强制重新渲染
+        if (weatherEngine.composer) {
+          weatherEngine.composer.render();
+          log('✅ 合成器重新渲染');
+        }
+        
+        // 再次手动渲染
+        if (weatherEngine.renderer && weatherEngine.scene && weatherEngine.camera) {
+          weatherEngine.renderer.render(weatherEngine.scene, weatherEngine.camera);
+          log('✅ 渲染器重新渲染');
+        }
+        
+        log('✅ 强制渲染更新完成');
+        
+      } catch (error) {
+        log(`❌ 强制渲染更新失败: ${error.message}`, 'error');
+        console.error(error);
+      }
+    }
+    
+    // 页面加载完成
+    window.addEventListener('load', () => {
+      log('页面加载完成，请点击"初始化引擎"开始诊断');
+    });
+  </script>
+</body>
+</html>

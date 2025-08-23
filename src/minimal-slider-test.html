@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>最小滑动条测试</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 20px;
+      font-family: Arial, sans-serif;
+      background: #f0f0f0;
+    }
+    .test-container {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+    }
+    .slider-container {
+      margin: 15px 0;
+    }
+    .slider-container label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: bold;
+    }
+    .slider-container input[type="range"] {
+      width: 300px;
+      vertical-align: middle;
+    }
+    .slider-container .value {
+      display: inline-block;
+      width: 80px;
+      margin-left: 15px;
+      font-family: monospace;
+      background: #f8f9fa;
+      padding: 4px 8px;
+      border-radius: 4px;
+    }
+    #weather-container {
+      width: 600px;
+      height: 400px;
+      border: 2px solid #ccc;
+      margin: 20px 0;
+      border-radius: 8px;
+      background: #000;
+    }
+    #console-output {
+      background: #1e1e1e;
+      color: #fff;
+      padding: 15px;
+      border-radius: 4px;
+      font-family: monospace;
+      font-size: 12px;
+      max-height: 300px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+    }
+    .button {
+      background: #007bff;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 4px;
+      cursor: pointer;
+      margin: 5px;
+    }
+    .button:hover {
+      background: #0056b3;
+    }
+  </style>
+</head>
+<body>
+  <h1>最小滑动条测试</h1>
+  
+  <div class="test-container">
+    <h2>引擎控制</h2>
+    <button class="button" onclick="initEngine()">初始化引擎</button>
+    <button class="button" onclick="testDirectMethods()">直接测试方法</button>
+    <button class="button" onclick="clearConsole()">清除控制台</button>
+  </div>
+  
+  <div id="weather-container"></div>
+  
+  <div class="test-container">
+    <h2>滑动条控制</h2>
+    
+    <div class="slider-container">
+      <label>太阳高度角:</label>
+      <input type="range" id="test-sun-altitude" min="-90" max="90" value="30" step="1">
+      <span class="value" id="test-sun-altitude-value">30°</span>
+    </div>
+    
+    <div class="slider-container">
+      <label>云透明度:</label>
+      <input type="range" id="test-cloud-opacity" min="0" max="1" value="0.4" step="0.01">
+      <span class="value" id="test-cloud-opacity-value">0.40</span>
+    </div>
+    
+    <div class="slider-container">
+      <label>雾浓度:</label>
+      <input type="range" id="test-fog-density" min="0" max="0.1" value="0.03" step="0.001">
+      <span class="value" id="test-fog-density-value">0.030</span>
+    </div>
+    
+    <button class="button" onclick="setupSimpleListeners()">设置简单监听器</button>
+  </div>
+  
+  <div class="test-container">
+    <h2>控制台输出</h2>
+    <div id="console-output">等待初始化...</div>
+  </div>
+  
+  <script src="../three.min.js"></script>
+  <script src="full-weather-engine.js"></script>
+  <script>
+    let weatherEngine;
+    const consoleOutput = document.getElementById('console-output');
+    
+    function log(message) {
+      const timestamp = new Date().toLocaleTimeString();
+      consoleOutput.textContent += `[${timestamp}] ${message}\n`;
+      consoleOutput.scrollTop = consoleOutput.scrollHeight;
+      console.log(message);
+    }
+    
+    function clearConsole() {
+      consoleOutput.textContent = '';
+    }
+    
+    async function initEngine() {
+      clearConsole();
+      log('=== 开始初始化天气引擎 ===');
+      
+      try {
+        const container = document.getElementById('weather-container');
+        weatherEngine = new FullWeatherEngine(container);
+        
+        log('✅ 天气引擎实例创建成功');
+        
+        // 等待初始化完成
+        await weatherEngine.initializationPromise;
+        
+        log('✅ 天气引擎初始化完成');
+        
+        // 检查引擎状态
+        log('引擎状态:');
+        log(`  场景: ${!!weatherEngine.scene}`);
+        log(`  相机: ${!!weatherEngine.camera}`);
+        log(`  渲染器: ${!!weatherEngine.renderer}`);
+        log(`  控制参数: ${!!weatherEngine.controlParams}`);
+        log(`  方向光: ${!!weatherEngine.directionalLight}`);
+        log(`  环境光: ${!!weatherEngine.ambientLight}`);
+        
+        if (weatherEngine.controlParams) {
+          log('控制参数:');
+          Object.keys(weatherEngine.controlParams).forEach(key => {
+            log(`  ${key}: ${weatherEngine.controlParams[key]}`);
+          });
+        }
+        
+        // 添加到全局作用域用于调试
+        window.engine = weatherEngine;
+        log('引擎已添加到 window.engine，可在控制台访问');
+        
+      } catch (error) {
+        log('❌ 初始化失败: ' + error.message);
+        console.error(error);
+      }
+    }
+    
+    function testDirectMethods() {
+      clearConsole();
+      log('=== 直接测试方法 ===');
+      
+      if (!weatherEngine || !weatherEngine.controlParams) {
+        log('❌ 请先初始化引擎');
+        return;
+      }
+      
+      try {
+        // 测试1: 直接修改太阳高度角
+        log('测试1: 直接修改太阳高度角');
+        const originalAltitude = weatherEngine.controlParams.sunAltitude;
+        weatherEngine.controlParams.sunAltitude = 60;
+        weatherEngine.updateSunPosition();
+        weatherEngine.applyControlParams();
+        log(`✅ 太阳高度角: ${originalAltitude} → ${weatherEngine.controlParams.sunAltitude}`);
+        
+        // 等待一下看看效果
+        setTimeout(() => {
+          // 测试2: 直接修改云透明度
+          log('测试2: 直接修改云透明度');
+          const originalOpacity = weatherEngine.controlParams.cloudOpacity;
+          weatherEngine.controlParams.cloudOpacity = 0.9;
+          weatherEngine.applyControlParams();
+          log(`✅ 云透明度: ${originalOpacity} → ${weatherEngine.controlParams.cloudOpacity}`);
+        }, 1000);
+        
+        setTimeout(() => {
+          // 测试3: 直接修改雾浓度
+          log('测试3: 直接修改雾浓度');
+          const originalFog = weatherEngine.controlParams.fogDensity;
+          weatherEngine.controlParams.fogDensity = 0.08;
+          weatherEngine.applyControlParams();
+          log(`✅ 雾浓度: ${originalFog} → ${weatherEngine.controlParams.fogDensity}`);
+        }, 2000);
+        
+        log('✅ 直接方法测试启动');
+        
+      } catch (error) {
+        log('❌ 直接方法测试失败: ' + error.message);
+        console.error(error);
+      }
+    }
+    
+    function setupSimpleListeners() {
+      clearConsole();
+      log('=== 设置简单滑动条监听器 ===');
+      
+      if (!weatherEngine || !weatherEngine.controlParams) {
+        log('❌ 请先初始化引擎');
+        return;
+      }
+      
+      // 太阳高度角滑块
+      const altitudeSlider = document.getElementById('test-sun-altitude');
+      altitudeSlider.oninput = function() {
+        const value = parseFloat(this.value);
+        document.getElementById('test-sun-altitude-value').textContent = value + '°';
+        
+        log(`太阳高度角滑块: ${value}°`);
+        
+        try {
+          weatherEngine.controlParams.sunAltitude = value;
+          weatherEngine.updateSunPosition();
+          weatherEngine.applyControlParams();
+          log('✅ 太阳高度角更新成功');
+        } catch (error) {
+          log('❌ 太阳高度角更新失败: ' + error.message);
+        }
+      };
+      
+      // 云透明度滑块
+      const opacitySlider = document.getElementById('test-cloud-opacity');
+      opacitySlider.oninput = function() {
+        const value = parseFloat(this.value);
+        document.getElementById('test-cloud-opacity-value').textContent = value.toFixed(2);
+        
+        log(`云透明度滑块: ${value}`);
+        
+        try {
+          weatherEngine.controlParams.cloudOpacity = value;
+          weatherEngine.applyControlParams();
+          log('✅ 云透明度更新成功');
+        } catch (error) {
+          log('❌ 云透明度更新失败: ' + error.message);
+        }
+      };
+      
+      // 雾浓度滑块
+      const fogSlider = document.getElementById('test-fog-density');
+      fogSlider.oninput = function() {
+        const value = parseFloat(this.value);
+        document.getElementById('test-fog-density-value').textContent = value.toFixed(3);
+        
+        log(`雾浓度滑块: ${value}`);
+        
+        try {
+          weatherEngine.controlParams.fogDensity = value;
+          weatherEngine.applyControlParams();
+          log('✅ 雾浓度更新成功');
+        } catch (error) {
+          log('❌ 雾浓度更新失败: ' + error.message);
+        }
+      };
+      
+      log('✅ 简单滑动条监听器设置完成');
+      log('现在可以拖动滑动条测试效果');
+    }
+    
+    // 页面加载完成
+    window.addEventListener('load', () => {
+      log('页面加载完成，请点击"初始化引擎"开始测试');
+    });
+  </script>
+</body>
+</html>

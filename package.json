@@ -1,0 +1,24 @@
+{
+  "name": "aescape",
+  "version": "1.0.0",
+  "description": "天景 AeScape - 沉浸式天气新标签页 Chrome 扩展",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "lint": "eslint src --ext .js",
+    "format": "prettier --write src/"
+  },
+  "dependencies": {
+    "suncalc": "^1.9.0"
+  },
+  "devDependencies": {
+    "vite": "^5.0.0",
+    "eslint": "^8.0.0",
+    "prettier": "^3.0.0"
+  },
+  "keywords": ["chrome-extension", "weather", "new-tab", "three.js", "animation"],
+  "author": "AeScape Team",
+  "license": "MIT"
+}

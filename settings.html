@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>天景设置 - AeScape</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', '微软雅黑', Arial, sans-serif;
+      background: linear-gradient(135deg, #87CEEB, #E0F7FA);
+      min-height: 100vh;
+      padding: 20px;
+      color: #2c1810;
+    }
+    
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+      background: rgba(255, 255, 255, 0.95);
+      border-radius: 16px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+      overflow: hidden;
+    }
+    
+    .header {
+      background: linear-gradient(135deg, #87CEEB, #E0F7FA);
+      padding: 30px;
+      text-align: center;
+      color: #2c1810;
+    }
+    
+    .header h1 {
+      font-size: 28px;
+      font-weight: 700;
+      margin-bottom: 10px;
+    }
+    
+    .header p {
+      font-size: 16px;
+      opacity: 0.8;
+    }
+    
+    .content {
+      padding: 30px;
+    }
+    
+    .section {
+      margin-bottom: 30px;
+      padding: 20px;
+      background: rgba(255, 255, 255, 0.8);
+      border-radius: 12px;
+      border: 1px solid rgba(44, 24, 16, 0.1);
+    }
+    
+    .section h2 {
+      font-size: 20px;
+      margin-bottom: 15px;
+      color: #2c1810;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    .setting-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 15px 0;
+      border-bottom: 1px solid rgba(44, 24, 16, 0.1);
+    }
+    
+    .setting-item:last-child {
+      border-bottom: none;
+    }
+    
+    .setting-info {
+      flex: 1;
+    }
+    
+    .setting-label {
+      font-size: 16px;
+      font-weight: 600;
+      color: #2c1810;
+      margin-bottom: 5px;
+    }
+    
+    .setting-description {
+      font-size: 14px;
+      color: #666;
+    }
+    
+    .toggle-switch {
+      position: relative;
+      display: inline-block;
+      width: 50px;
+      height: 24px;
+    }
+    
+    .toggle-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+    
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: #ccc;
+      transition: .4s;
+      border-radius: 24px;
+    }
+    
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 18px;
+      width: 18px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      transition: .4s;
+      border-radius: 50%;
+    }
+    
+    input:checked + .slider {
+      background-color: #87CEEB;
+    }
+    
+    input:checked + .slider:before {
+      transform: translateX(26px);
+    }
+    
+    .location-section {
+      background: rgba(255, 255, 255, 0.9);
+      padding: 20px;
+      border-radius: 12px;
+      border: 1px solid rgba(44, 24, 16, 0.1);
+    }
+    
+    .location-input {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid #ddd;
+      border-radius: 8px;
+      font-size: 14px;
+      margin-bottom: 10px;
+      transition: border-color 0.3s;
+    }
+    
+    .location-input:focus {
+      outline: none;
+      border-color: #87CEEB;
+    }
+    
+    .btn {
+      background: linear-gradient(135deg, #87CEEB, #E0F7FA);
+      color: #2c1810;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+    
+    .btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(135, 206, 235, 0.3);
+    }
+    
+    .status {
+      margin-top: 10px;
+      padding: 10px;
+      border-radius: 6px;
+      font-size: 14px;
+    }
+    
+    .status.success {
+      background: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+    }
+    
+    .status.error {
+      background: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+    }
+    
+    .footer {
+      padding: 20px;
+      text-align: center;
+      background: rgba(255, 255, 255, 0.8);
+      color: #666;
+      font-size: 14px;
+    }
+    
+    .back-btn {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      background: rgba(255, 255, 255, 0.9);
+      border: none;
+      padding: 10px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: all 0.3s;
+    }
+    
+    .back-btn:hover {
+      background: rgba(255, 255, 255, 1);
+      transform: translateY(-1px);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🌤️ 天景设置</h1>
+      <p>让每一次打开新标签页都成为一次与自然的邂逅</p>
+    </div>
+    
+    <div class="content">
+      <div class="section">
+        <h2>📍 位置设置</h2>
+        <div class="location-section">
+          <div class="setting-item">
+            <div class="setting-info">
+              <div class="setting-label">当前位置</div>
+              <div class="setting-description" id="current-location">正在加载...</div>
+            </div>
+          </div>
+          <div class="setting-item">
+            <div class="setting-info">
+              <div class="setting-label">手动设置位置</div>
+              <div class="setting-description">输入城市名称来设置天气位置</div>
+            </div>
+          </div>
+          <input 
+            type="text" 
+            class="location-input" 
+            id="location-input" 
+            placeholder="输入城市名称 (例: 北京、上海、广州)"
+          />
+          <button class="btn" id="set-location-btn">设置位置</button>
+          <div id="location-status"></div>
+        </div>
+      </div>
+      
+      <div class="section">
+        <h2>⚙️ 功能设置</h2>
+        <div class="setting-item">
+          <div class="setting-info">
+            <div class="setting-label">启用悬浮球</div>
+            <div class="setting-description">在网页上显示天气悬浮球</div>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" id="floating-ball-toggle">
+            <span class="slider"></span>
+          </label>
+        </div>
+        
+        <div class="setting-item">
+          <div class="setting-info">
+            <div class="setting-label">自动刷新天气</div>
+            <div class="setting-description">每30分钟自动更新天气数据</div>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" id="auto-refresh-toggle" checked>
+            <span class="slider"></span>
+          </label>
+        </div>
+        
+        <div class="setting-item">
+          <div class="setting-info">
+            <div class="setting-label">显示详细天气</div>
+            <div class="setting-description">显示更多天气详细信息</div>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" id="detailed-weather-toggle" checked>
+            <span class="slider"></span>
+          </label>
+        </div>
+      </div>
+      
+      <div class="section">
+        <h2>🔄 数据管理</h2>
+        <div class="setting-item">
+          <div class="setting-info">
+            <div class="setting-label">立即刷新天气</div>
+            <div class="setting-description">强制更新当前的天气数据</div>
+          </div>
+          <button class="btn" id="refresh-weather-btn">刷新天气</button>
+        </div>
+        
+        <div class="setting-item">
+          <div class="setting-info">
+            <div class="setting-label">清除缓存</div>
+            <div class="setting-description">清除所有本地存储的数据</div>
+          </div>
+          <button class="btn" id="clear-cache-btn">清除缓存</button>
+        </div>
+      </div>
+      
+      <div class="section">
+        <h2>🔧 API 配置</h2>
+        <div class="setting-item">
+          <div class="setting-info">
+            <div class="setting-label">OpenWeatherMap API Key</div>
+            <div class="setting-description">输入您的 OpenWeatherMap API 密钥</div>
+          </div>
+        </div>
+        
+        <input 
+          type="text" 
+          class="location-input" 
+          id="openweather-apikey" 
+          placeholder="输入 OpenWeatherMap API Key"
+        />
+        <button class="btn" id="save-apikey-btn">保存 API Key</button>
+        <div id="apikey-status"></div>
+        
+        <div style="margin-top: 20px;">
+          <div class="setting-description">
+            <small>💡 获取免费 API Key: <a href="https://home.openweathermap.org/api_keys" target="_blank">https://home.openweathermap.org/api_keys</a></small>
+          </div>
+        </div>
+      </div>
+      
+      <div class="section">
+        <h2>🌤️ 天气引擎</h2>
+        <div class="setting-item">
+          <div class="setting-info">
+            <div class="setting-label">启用天气引擎</div>
+            <div class="setting-description">开启后可在新标签页中访问完整的天气引擎控制面板</div>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" id="weather-engine-toggle">
+            <span class="slider"></span>
+          </label>
+        </div>
+        
+        <div class="setting-item" id="weather-engine-link" style="display: none;">
+          <div class="setting-info">
+            <div class="setting-label">天气引擎控制面板</div>
+            <div class="setting-description">完整的天气场景控制，包括太阳位置、天气效果、相机视角等</div>
+          </div>
+          <button class="btn" id="weather-engine-btn">打开天气引擎</button>
+        </div>
+      </div>
+      
+      <div class="section">
+        <h2>🔧 API 测试</h2>
+        <div class="setting-item">
+          <div class="setting-info">
+            <div class="setting-label">测试天气 API 连通性</div>
+            <div class="setting-description">检查 Open-Meteo 天气数据 API 是否正常工作</div>
+          </div>
+          <button class="btn" id="test-weather-api-btn">测试天气 API</button>
+        </div>
+        
+        <div class="setting-item">
+          <div class="setting-info">
+            <div class="setting-label">测试地理编码 API</div>
+            <div class="setting-description">检查位置搜索 API 是否正常工作</div>
+          </div>
+          <button class="btn" id="test-geocoding-api-btn">测试地理编码 API</button>
+        </div>
+        
+        <div class="setting-item">
+          <div class="setting-info">
+            <div class="setting-label">测试 OpenWeatherMap API</div>
+            <div class="setting-description">检查 OpenWeatherMap 天气数据 API 是否正常工作</div>
+          </div>
+          <button class="btn" id="test-openweather-api-btn">测试 OpenWeatherMap API</button>
+        </div>
+        
+        <div class="setting-item">
+          <div class="setting-info">
+            <div class="setting-label">自定义 API URL 测试</div>
+            <div class="setting-description">输入任意 API URL 进行连通性测试</div>
+          </div>
+        </div>
+        
+        <input 
+          type="url" 
+          class="location-input" 
+          id="custom-api-url" 
+          placeholder="输入 API URL (例: https://api.example.com/data)"
+        />
+        <button class="btn" id="test-custom-api-btn">测试自定义 API</button>
+        
+        <div id="api-test-results"></div>
+      </div>
+    </div>
+    
+    <div class="footer">
+      <p>天景 AeScape v1.0.0</p>
+      <p>让数字生活多一份宁静与美感</p>
+    </div>
+  </div>
+  
+  <script src="settings.js"></script>
+</body>
+</html>

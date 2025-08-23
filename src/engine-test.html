@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>天气引擎控制测试</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 20px;
+      font-family: Arial, sans-serif;
+      background: #f0f0f0;
+    }
+    .test-container {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+    }
+    .test-button {
+      background: #007bff;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 4px;
+      cursor: pointer;
+      margin: 5px;
+    }
+    .test-button:hover {
+      background: #0056b3;
+    }
+    #results {
+      background: #f8f9fa;
+      padding: 15px;
+      border-radius: 4px;
+      border: 1px solid #dee2e6;
+      margin-top: 20px;
+      font-family: monospace;
+      white-space: pre-wrap;
+    }
+  </style>
+</head>
+<body>
+  <h1>天气引擎控制测试</h1>
+  
+  <div class="test-container">
+    <h2>测试项目</h2>
+    <button class="test-button" onclick="testControlAvailability()">测试控制参数可用性</button>
+    <button class="test-button" onclick="testSunPositionCalculation()">测试太阳位置计算</button>
+    <button class="test-button" onclick="testWeatherSwitching()">测试天气切换</button>
+    <button class="test-button" onclick="testParameterUpdate()">测试参数更新</button>
+  </div>
+  
+  <div id="results">测试结果将显示在这里...</div>
+  
+  <script src="../three.min.js"></script>
+  <script src="full-weather-engine.js"></script>
+  <script>
+    let weatherEngine;
+    const resultsDiv = document.getElementById('results');
+    
+    function log(message) {
+      resultsDiv.textContent += message + '\n';
+      console.log(message);
+    }
+    
+    function clearResults() {
+      resultsDiv.textContent = '';
+    }
+    
+    async function testControlAvailability() {
+      clearResults();
+      log('=== 测试控制参数可用性 ===');
+      
+      try {
+        const container = document.createElement('div');
+        container.style.width = '800px';
+        container.style.height = '600px';
+        document.body.appendChild(container);
+        
+        weatherEngine = new FullWeatherEngine(container);
+        
+        // 等待初始化完成
+        await weatherEngine.initializationPromise;
+        
+        log('✅ 天气引擎初始化成功');
+        log('✅ 场景: ' + !!weatherEngine.scene);
+        log('✅ 相机: ' + !!weatherEngine.camera);
+        log('✅ 渲染器: ' + !!weatherEngine.renderer);
+        log('✅ 控制参数: ' + !!weatherEngine.controlParams);
+        log('✅ 方向光: ' + !!weatherEngine.directionalLight);
+        log('✅ 环境光: ' + !!weatherEngine.ambientLight);
+        
+        // 检查控制参数
+        if (weatherEngine.controlParams) {
+          log('✅ 控制参数内容:');
+          Object.keys(weatherEngine.controlParams).forEach(key => {
+            log(`  ${key}: ${weatherEngine.controlParams[key]}`);
+          });
+        }
+        
+        // 检查方法可用性
+        log('✅ 方法可用性:');
+        log('  applyControlParams: ' + typeof weatherEngine.applyControlParams);
+        log('  updateSunPosition: ' + typeof weatherEngine.updateSunPosition);
+        log('  calculateSunPositionFromTime: ' + typeof weatherEngine.calculateSunPositionFromTime);
+        log('  updateWeatherType: ' + typeof weatherEngine.updateWeatherType);
+        log('  resetControlParams: ' + typeof weatherEngine.resetControlParams);
+        
+      } catch (error) {
+        log('❌ 测试失败: ' + error.message);
+        console.error(error);
+      }
+    }
+    
+    async function testSunPositionCalculation() {
+      clearResults();
+      log('=== 测试太阳位置计算 ===');
+      
+      if (!weatherEngine) {
+        log('❌ 请先运行控制参数可用性测试');
+        return;
+      }
+      
+      try {
+        // 测试不同时间的太阳位置
+        const testTimes = [6, 9, 12, 15, 18, 21];
+        
+        for (const hour of testTimes) {
+          weatherEngine.controlParams.timeOfDayHours = hour;
+          weatherEngine.calculateSunPositionFromTime();
+          
+          log(`时间 ${hour}:00 - 高度角: ${weatherEngine.controlParams.sunAltitude.toFixed(2)}°, 方位角: ${weatherEngine.controlParams.sunAzimuth.toFixed(2)}°`);
+        }
+        
+        // 应用太阳位置更新
+        weatherEngine.updateSunPosition();
+        weatherEngine.applyControlParams();
+        
+        log('✅ 太阳位置计算测试完成');
+        
+      } catch (error) {
+        log('❌ 太阳位置计算测试失败: ' + error.message);
+        console.error(error);
+      }
+    }
+    
+    async function testWeatherSwitching() {
+      clearResults();
+      log('=== 测试天气切换 ===');
+      
+      if (!weatherEngine) {
+        log('❌ 请先运行控制参数可用性测试');
+        return;
+      }
+      
+      try {
+        const weatherTypes = ['clear', 'cloudy', 'rain', 'snow'];
+        
+        for (const weatherType of weatherTypes) {
+          log(`切换到 ${weatherType} 天气...`);
+          weatherEngine.controlParams.weatherType = weatherType;
+          weatherEngine.updateWeatherType();
+          log(`✅ ${weatherType} 天气设置完成`);
+          
+          // 等待一小段时间让效果生效
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
+        
+        log('✅ 天气切换测试完成');
+        
+      } catch (error) {
+        log('❌ 天气切换测试失败: ' + error.message);
+        console.error(error);
+      }
+    }
+    
+    async function testParameterUpdate() {
+      clearResults();
+      log('=== 测试参数更新 ===');
+      
+      if (!weatherEngine) {
+        log('❌ 请先运行控制参数可用性测试');
+        return;
+      }
+      
+      try {
+        // 测试云透明度
+        log('测试云透明度...');
+        weatherEngine.controlParams.cloudOpacity = 0.8;
+        weatherEngine.applyControlParams();
+        log(`✅ 云透明度设置为: ${weatherEngine.controlParams.cloudOpacity}`);
+        
+        // 测试雾浓度
+        log('测试雾浓度...');
+        weatherEngine.controlParams.fogDensity = 0.05;
+        weatherEngine.applyControlParams();
+        log(`✅ 雾浓度设置为: ${weatherEngine.controlParams.fogDensity}`);
+        
+        // 测试太阳位置
+        log('测试太阳位置...');
+        weatherEngine.controlParams.sunAltitude = 45;
+        weatherEngine.controlParams.sunAzimuth = 90;
+        weatherEngine.updateSunPosition();
+        weatherEngine.applyControlParams();
+        log(`✅ 太阳位置设置为: 高度角 ${weatherEngine.controlParams.sunAltitude}°, 方位角 ${weatherEngine.controlParams.sunAzimuth}°`);
+        
+        // 测试相机视角
+        log('测试相机视角...');
+        weatherEngine.controlParams.cameraFov = 60;
+        weatherEngine.updateBasicCameraControls();
+        log(`✅ 相机视角设置为: ${weatherEngine.controlParams.cameraFov}°`);
+        
+        log('✅ 参数更新测试完成');
+        
+      } catch (error) {
+        log('❌ 参数更新测试失败: ' + error.message);
+        console.error(error);
+      }
+    }
+  </script>
+</body>
+</html>

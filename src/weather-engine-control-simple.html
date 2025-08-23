@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>天气引擎控制中心 - 简化版</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', '微软雅黑', Arial, sans-serif;
+      background: linear-gradient(135deg, #87CEEB, #E0F7FA);
+      min-height: 100vh;
+      overflow: hidden;
+    }
+    
+    #weather-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+    }
+    
+    .control-panel {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      width: 350px;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      border-radius: 16px;
+      padding: 20px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+      z-index: 1000;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 14px;
+      color: #333;
+      max-height: calc(100vh - 40px);
+      overflow-y: auto;
+    }
+    
+    .control-panel h3 {
+      margin-bottom: 20px;
+      color: #2c1810;
+      font-size: 18px;
+      font-weight: 600;
+      text-align: center;
+    }
+    
+    .control-section {
+      margin-bottom: 25px;
+      padding: 15px;
+      background: rgba(255, 255, 255, 0.7);
+      border-radius: 12px;
+      border: 1px solid rgba(44, 24, 16, 0.1);
+    }
+    
+    .control-section h4 {
+      margin-bottom: 15px;
+      color: #2c1810;
+      font-size: 16px;
+      font-weight: 600;
+    }
+    
+    .control-group {
+      margin-bottom: 15px;
+    }
+    
+    .control-group label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 500;
+      color: #374151;
+      font-size: 14px;
+    }
+    
+    .slider-container {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    input[type="range"] {
+      flex: 1;
+      height: 6px;
+      border-radius: 3px;
+      background: #e5e7eb;
+      outline: none;
+      -webkit-appearance: none;
+    }
+    
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: #87CEEB;
+      cursor: pointer;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+    }
+    
+    input[type="range"]::-moz-range-thumb {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: #87CEEB;
+      cursor: pointer;
+      border: none;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+    }
+    
+    .value-display {
+      min-width: 45px;
+      text-align: right;
+      font-size: 13px;
+      color: #6b7280;
+      font-weight: 500;
+    }
+    
+    .button-group {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 15px;
+    }
+    
+    .weather-btn {
+      padding: 8px 12px;
+      border: 2px solid #e5e7eb;
+      border-radius: 8px;
+      background: white;
+      color: #374151;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 500;
+      transition: all 0.2s;
+      text-align: center;
+    }
+    
+    .weather-btn:hover {
+      border-color: #87CEEB;
+      transform: translateY(-1px);
+    }
+    
+    .weather-btn.active {
+      background: #87CEEB;
+      color: white;
+      border-color: #87CEEB;
+    }
+    
+    .time-display {
+      text-align: center;
+      margin-bottom: 15px;
+      padding: 10px;
+      background: rgba(135, 206, 235, 0.1);
+      border-radius: 8px;
+      font-size: 14px;
+      color: #2c1810;
+      font-weight: 500;
+    }
+    
+    .status-info {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      background: rgba(0, 0, 0, 0.8);
+      color: white;
+      padding: 15px;
+      border-radius: 10px;
+      font-size: 13px;
+      z-index: 1001;
+      max-width: 300px;
+      line-height: 1.4;
+    }
+    
+    .loading {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+      color: #6b7280;
+      z-index: 1002;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+    
+    .loading::after {
+      content: '';
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 2px solid #e5e7eb;
+      border-top: 2px solid #3b82f6;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-left: 10px;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    .back-btn {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      background: rgba(255, 255, 255, 0.9);
+      border: none;
+      padding: 10px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: all 0.3s;
+      z-index: 1001;
+    }
+    
+    .back-btn:hover {
+      background: rgba(255, 255, 255, 1);
+      transform: translateY(-1px);
+    }
+    
+    .reset-btn {
+      width: 100%;
+      padding: 12px;
+      background: #6b7280;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+      margin-top: 15px;
+      transition: all 0.3s;
+    }
+    
+    .reset-btn:hover {
+      background: #4b5563;
+      transform: translateY(-1px);
+    }
+  </style>
+</head>
+<body>
+  <div id="weather-container"></div>
+  <div class="loading" id="loading">正在加载天气引擎...</div>
+  
+  <button class="back-btn" onclick="window.close()">返回设置</button>
+  
+  <div class="status-info" id="status-info">
+    <div><strong>🌤️ 天气引擎控制中心</strong></div>
+    <div>使用右侧控制面板调整各种参数</div>
+    <div id="engine-status">正在初始化...</div>
+  </div>
+  
+  <div class="control-panel" id="control-panel">
+    <h3>🌤️ 天气引擎控制中心</h3>
+    
+    <div class="control-section">
+      <h4>🌞 太阳控制</h4>
+      <div class="control-group">
+        <label>太阳高度角</label>
+        <div class="slider-container">
+          <input type="range" id="sun-altitude" min="-90" max="90" value="30" step="1">
+          <span class="value-display" id="sun-altitude-value">30°</span>
+        </div>
+      </div>
+      <div class="control-group">
+        <label>太阳方位角</label>
+        <div class="slider-container">
+          <input type="range" id="sun-azimuth" min="0" max="360" value="180" step="1">
+          <span class="value-display" id="sun-azimuth-value">180°</span>
+        </div>
+      </div>
+    </div>
+    
+    <div class="control-section">
+      <h4>🌦️ 天气效果</h4>
+      <div class="button-group">
+        <div class="weather-btn active" data-weather="clear">☀️ 晴天</div>
+        <div class="weather-btn" data-weather="cloudy">☁️ 多云</div>
+        <div class="weather-btn" data-weather="rain">🌧️ 雨天</div>
+        <div class="weather-btn" data-weather="snow">❄️ 雪天</div>
+      </div>
+      <div class="control-group">
+        <label>云透明度</label>
+        <div class="slider-container">
+          <input type="range" id="cloud-opacity" min="0" max="1" value="0.4" step="0.01">
+          <span class="value-display" id="cloud-opacity-value">0.40</span>
+        </div>
+      </div>
+      <div class="control-group">
+        <label>云移动速度</label>
+        <div class="slider-container">
+          <input type="range" id="cloud-speed" min="0" max="3" value="1" step="0.1">
+          <span class="value-display" id="cloud-speed-value">1.0</span>
+        </div>
+      </div>
+      <div class="control-group">
+        <label>雾浓度</label>
+        <div class="slider-container">
+          <input type="range" id="fog-density" min="0" max="0.2" value="0.03" step="0.001">
+          <span class="value-display" id="fog-density-value">0.030</span>
+        </div>
+      </div>
+    </div>
+    
+    <div class="control-section">
+      <h4>📹 相机控制</h4>
+      <div class="control-group">
+        <label>视野角度</label>
+        <div class="slider-container">
+          <input type="range" id="camera-fov" min="30" max="120" value="75" step="1">
+          <span class="value-display" id="camera-fov-value">75°</span>
+        </div>
+      </div>
+      <div class="control-group">
+        <label>相机距离</label>
+        <div class="slider-container">
+          <input type="range" id="camera-distance" min="-50" max="50" value="0" step="1">
+          <span class="value-display" id="camera-distance-value">0</span>
+        </div>
+      </div>
+    </div>
+    
+    <div class="control-section">
+      <h4>⏰ 时间控制</h4>
+      <div class="time-display" id="time-display">12:00 - 中午</div>
+      <div class="control-group">
+        <label>时间 (小时)</label>
+        <div class="slider-container">
+          <input type="range" id="time-hours" min="0" max="24" value="12" step="0.5">
+          <span class="value-display" id="time-hours-value">12.0</span>
+        </div>
+      </div>
+    </div>
+    
+    <button class="reset-btn" id="reset-btn">重置为默认值</button>
+  </div>
+  
+  <script src="../three.min.js"></script>
+  <script src="full-weather-engine.js"></script>
+  <script>
+    let weatherEngine = null;
+    
+    // 状态信息更新
+    function updateStatus(message) {
+      const statusDiv = document.getElementById('engine-status');
+      if (statusDiv) {
+        statusDiv.textContent = message;
+      }
+    }
+    
+    // 格式化时间显示
+    function formatTime(hours) {
+      const h = Math.floor(hours);
+      const m = Math.floor((hours - h) * 60);
+      let period = '';
+      let displayHour = h;
+      
+      if (h < 6) period = '凌晨';
+      else if (h < 12) period = '上午';
+      else if (h < 18) period = '下午';
+      else period = '晚上';
+      
+      if (h === 0) displayHour = 12;
+      else if (h > 12) displayHour = h - 12;
+      
+      return `${displayHour}:${m.toString().padStart(2, '0')} - ${period}`;
+    }
+    
+    // 获取参数名
+    function getParamName(sliderId) {
+      const paramMap = {
+        'sun-altitude': 'sunAltitude',
+        'sun-azimuth': 'sunAzimuth',
+        'cloud-opacity': 'cloudOpacity',
+        'cloud-speed': 'cloudSpeed',
+        'fog-density': 'fogDensity',
+        'camera-fov': 'cameraFov',
+        'camera-distance': 'cameraDistance',
+        'time-hours': 'timeOfDayHours'
+      };
+      return paramMap[sliderId] || sliderId;
+    }
+    
+    // 更新滑块显示值
+    function updateSliderDisplay(slider) {
+      const param = getParamName(slider.id);
+      const value = parseFloat(slider.value);
+      const valueDisplay = document.getElementById(slider.id + '-value');
+      
+      if (!valueDisplay) return;
+      
+      let displayValue = value;
+      
+      if (param.includes('Altitude') || param.includes('Azimuth') || param.includes('Fov')) {
+        displayValue = value + '°';
+      } else if (param === 'fogDensity') {
+        displayValue = value.toFixed(3);
+      } else if (param === 'cloudOpacity') {
+        displayValue = value.toFixed(2);
+      } else if (param === 'timeOfDayHours') {
+        displayValue = value.toFixed(1);
+        document.getElementById('time-display').textContent = formatTime(value);
+      } else {
+        displayValue = value.toFixed(1);
+      }
+      
+      valueDisplay.textContent = displayValue;
+    }
+    
+    // 处理滑块变化
+    function handleSliderChange(slider) {
+      const param = getParamName(slider.id);
+      const value = parseFloat(slider.value);
+      
+      console.log('Slider changed:', param, value);
+      
+      // 更新显示值
+      updateSliderDisplay(slider);
+      
+      // 更新引擎参数
+      if (weatherEngine && weatherEngine.controlParams && param in weatherEngine.controlParams) {
+        const oldValue = weatherEngine.controlParams[param];
+        weatherEngine.controlParams[param] = value;
+        console.log('Updated controlParams:', param, oldValue, '→', value);
+        
+        // 特殊处理
+        if (param === 'timeOfDayHours') {
+          console.log('Calculating sun position from time...');
+          if (weatherEngine.calculateSunPositionFromTime) {
+            weatherEngine.calculateSunPositionFromTime();
+            console.log('Sun position calculated:', {
+              altitude: weatherEngine.controlParams.sunAltitude,
+              azimuth: weatherEngine.controlParams.sunAzimuth
+            });
+          }
+        }
+        
+        if (param === 'sunAltitude' || param === 'sunAzimuth') {
+          console.log('Updating sun position...');
+          if (weatherEngine.updateSunPosition) {
+            weatherEngine.updateSunPosition();
+          }
+        }
+        
+        console.log('Applying control params...');
+        if (weatherEngine.applyControlParams) {
+          weatherEngine.applyControlParams();
+        }
+        updateStatus(`已更新 ${param}: ${value}`);
+      } else {
+        console.warn('Control param not found:', param, 'Available params:', Object.keys(weatherEngine.controlParams || {}));
+      }
+    }
+    
+    // 初始化引擎
+    async function initEngine() {
+      updateStatus('正在初始化天气引擎...');
+      
+      try {
+        const container = document.getElementById('weather-container');
+        weatherEngine = new FullWeatherEngine(container);
+        
+        // 等待引擎初始化完成
+        await weatherEngine.initializationPromise;
+        
+        console.log('Weather engine initialization completed');
+        updateStatus('引擎运行正常 - 所有系统已启动');
+        
+        // 隐藏加载提示
+        const loading = document.getElementById('loading');
+        if (loading) {
+          loading.style.display = 'none';
+        }
+        
+        // 初始化控制功能
+        initControls();
+        
+      } catch (error) {
+        console.error('Weather engine initialization failed:', error);
+        updateStatus('引擎初始化失败: ' + error.message);
+        
+        // 隐藏加载提示
+        const loading = document.getElementById('loading');
+        if (loading) {
+          loading.style.display = 'none';
+        }
+      }
+    }
+    
+    // 初始化控制功能
+    function initControls() {
+      console.log('Initializing controls...');
+      
+      if (!weatherEngine || !weatherEngine.controlParams) {
+        console.error('Weather engine or controlParams not available');
+        return;
+      }
+      
+      // 设置滑块事件监听器
+      const sliders = document.querySelectorAll('input[type="range"]');
+      console.log('Found sliders:', sliders.length);
+      
+      sliders.forEach((slider, index) => {
+        console.log(`Setting up slider ${index + 1}:`, slider.id);
+        
+        // 直接绑定事件处理函数
+        slider.oninput = function() {
+          handleSliderChange(this);
+        };
+        
+        // 初始化滑块显示值
+        const param = getParamName(slider.id);
+        if (weatherEngine.controlParams && param in weatherEngine.controlParams) {
+          slider.value = weatherEngine.controlParams[param];
+          console.log(`Initialized slider ${slider.id} with value:`, weatherEngine.controlParams[param]);
+          // 触发一次更新显示值
+          updateSliderDisplay(slider);
+        }
+      });
+      
+      // 设置天气按钮事件监听器
+      const weatherButtons = document.querySelectorAll('.weather-btn');
+      weatherButtons.forEach(button => {
+        button.onclick = function() {
+          const weatherType = this.getAttribute('data-weather');
+          
+          // 更新按钮状态
+          weatherButtons.forEach(btn => btn.classList.remove('active'));
+          this.classList.add('active');
+          
+          // 更新天气
+          if (weatherEngine.controlParams) {
+            weatherEngine.controlParams.weatherType = weatherType;
+            if (weatherEngine.updateWeatherType) {
+              weatherEngine.updateWeatherType();
+            }
+            updateStatus(`切换到${this.textContent}天气`);
+          }
+        };
+      });
+      
+      // 设置重置按钮事件监听器
+      const resetBtn = document.getElementById('reset-btn');
+      if (resetBtn) {
+        resetBtn.onclick = function() {
+          if (weatherEngine.resetControlParams) {
+            weatherEngine.resetControlParams();
+            
+            // 重置所有滑块值
+            const sliders = document.querySelectorAll('input[type="range"]');
+            sliders.forEach(slider => {
+              const param = getParamName(slider.id);
+              if (weatherEngine.controlParams && param in weatherEngine.controlParams) {
+                slider.value = weatherEngine.controlParams[param];
+                updateSliderDisplay(slider);
+              }
+            });
+            
+            // 重置天气按钮
+            const weatherButtons = document.querySelectorAll('.weather-btn');
+            weatherButtons.forEach(btn => btn.classList.remove('active'));
+            document.querySelector('[data-weather="clear"]').classList.add('active');
+            
+            updateStatus('已重置为默认值');
+          }
+        };
+      }
+      
+      // 初始化时间显示
+      document.getElementById('time-display').textContent = formatTime(weatherEngine.controlParams.timeOfDayHours || 12);
+      
+      console.log('Controls initialized successfully');
+      
+      // 添加测试函数到全局作用域
+      window.testEngine = weatherEngine;
+      window.testSunPosition = function() {
+        console.log('Testing sun position update...');
+        if (weatherEngine.controlParams) {
+          weatherEngine.controlParams.sunAltitude = 45;
+          if (weatherEngine.updateSunPosition) {
+            weatherEngine.updateSunPosition();
+          }
+          if (weatherEngine.applyControlParams) {
+            weatherEngine.applyControlParams();
+          }
+        }
+        console.log('Sun position test completed');
+      };
+      
+      window.testCloudOpacity = function() {
+        console.log('Testing cloud opacity update...');
+        if (weatherEngine.controlParams) {
+          weatherEngine.controlParams.cloudOpacity = 0.8;
+          if (weatherEngine.applyControlParams) {
+            weatherEngine.applyControlParams();
+          }
+        }
+        console.log('Cloud opacity test completed');
+      };
+    }
+    
+    // 页面加载完成后初始化
+    document.addEventListener('DOMContentLoaded', function() {
+      console.log('DOM loaded, initializing engine...');
+      initEngine();
+    });
+  </script>
+</body>
+</html>

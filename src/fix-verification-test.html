@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>修复验证测试</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 20px;
+      font-family: Arial, sans-serif;
+      background: #f0f0f0;
+    }
+    .test-container {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      position: relative;
+      z-index: 10;
+    }
+    .slider-container {
+      margin: 15px 0;
+    }
+    .slider-container label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: bold;
+    }
+    .slider-container input[type="range"] {
+      width: 300px;
+      vertical-align: middle;
+    }
+    .slider-container .value {
+      display: inline-block;
+      width: 80px;
+      margin-left: 15px;
+      font-family: monospace;
+      background: #f8f9fa;
+      padding: 4px 8px;
+      border-radius: 4px;
+    }
+    #weather-container {
+      width: 800px;
+      height: 600px;
+      border: 2px solid #ccc;
+      margin: 20px 0;
+      border-radius: 8px;
+      background: #000;
+      position: relative;
+      z-index: 1;
+    }
+    .test-button {
+      background: #28a745;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 4px;
+      cursor: pointer;
+      margin: 5px;
+    }
+    .test-button:hover {
+      background: #218838;
+    }
+    #console-output {
+      background: #1e1e1e;
+      color: #fff;
+      padding: 15px;
+      border-radius: 4px;
+      font-family: monospace;
+      font-size: 12px;
+      max-height: 300px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+    }
+  </style>
+</head>
+<body>
+  <h1>🔧 修复验证测试</h1>
+  
+  <div class="test-container">
+    <h2>测试控制</h2>
+    <button class="test-button" onclick="initEngine()">初始化引擎</button>
+    <button class="test-button" onclick="testAllParameters()">测试所有参数</button>
+    <button class="test-button" onclick="clearConsole()">清除控制台</button>
+  </div>
+  
+  <div id="weather-container"></div>
+  
+  <div class="test-container">
+    <h2>实时控制</h2>
+    
+    <div class="slider-container">
+      <label>太阳高度角 (-90° 到 90°):</label>
+      <input type="range" id="sun-altitude" min="-90" max="90" value="30" step="1">
+      <span class="value" id="sun-altitude-value">30°</span>
+    </div>
+    
+    <div class="slider-container">
+      <label>云透明度 (0 到 1):</label>
+      <input type="range" id="cloud-opacity" min="0" max="1" value="0.4" step="0.01">
+      <span class="value" id="cloud-opacity-value">0.40</span>
+    </div>
+    
+    <div class="slider-container">
+      <label>雾浓度 (0 到 0.2):</label>
+      <input type="range" id="fog-density" min="0" max="0.2" value="0.03" step="0.001">
+      <span class="value" id="fog-density-value">0.030</span>
+    </div>
+    
+    <div class="slider-container">
+      <label>时间 (0 到 24小时):</label>
+      <input type="range" id="time-hours" min="0" max="24" value="12" step="0.5">
+      <span class="value" id="time-hours-value">12.0</span>
+    </div>
+  </div>
+  
+  <div class="test-container">
+    <h2>控制台输出</h2>
+    <div id="console-output">等待初始化...</div>
+  </div>
+  
+  <script src="../three.min.js"></script>
+  <script src="full-weather-engine.js"></script>
+  <script>
+    let weatherEngine;
+    const consoleOutput = document.getElementById('console-output');
+    
+    function log(message) {
+      const timestamp = new Date().toLocaleTimeString();
+      consoleOutput.textContent += `[${timestamp}] ${message}\n`;
+      consoleOutput.scrollTop = consoleOutput.scrollHeight;
+      console.log(message);
+    }
+    
+    function clearConsole() {
+      consoleOutput.textContent = '';
+    }
+    
+    async function initEngine() {
+      clearConsole();
+      log('=== 初始化天气引擎 ===');
+      
+      try {
+        const container = document.getElementById('weather-container');
+        weatherEngine = new FullWeatherEngine(container);
+        
+        // 等待初始化完成
+        await weatherEngine.initializationPromise;
+        
+        log('✅ 天气引擎初始化完成');
+        
+        // 检查关键对象
+        log('引擎状态检查:');
+        log(`  场景: ${!!weatherEngine.scene}`);
+        log(`  相机: ${!!weatherEngine.camera}`);
+        log(`  渲染器: ${!!weatherEngine.renderer}`);
+        log(`  天空球: ${!!weatherEngine.skySphere}`);
+        log(`  方向光: ${!!weatherEngine.directionalLight}`);
+        log(`  环境光: ${!!weatherEngine.ambientLight}`);
+        log(`  云组: ${!!weatherEngine.cloudGroup}`);
+        
+        // 设置滑动条监听器
+        setupSliderListeners();
+        
+        // 添加到全局作用域
+        window.engine = weatherEngine;
+        
+        log('✅ 引擎就绪，可以开始测试');
+        
+      } catch (error) {
+        log('❌ 初始化失败: ' + error.message);
+        console.error(error);
+      }
+    }
+    
+    function setupSliderListeners() {
+      // 太阳高度角
+      const altitudeSlider = document.getElementById('sun-altitude');
+      altitudeSlider.oninput = function() {
+        const value = parseFloat(this.value);
+        document.getElementById('sun-altitude-value').textContent = value + '°';
+        
+        log(`🌞 太阳高度角: ${value}°`);
+        updateParameter('sunAltitude', value);
+      };
+      
+      // 云透明度
+      const opacitySlider = document.getElementById('cloud-opacity');
+      opacitySlider.oninput = function() {
+        const value = parseFloat(this.value);
+        document.getElementById('cloud-opacity-value').textContent = value.toFixed(2);
+        
+        log(`☁️ 云透明度: ${value}`);
+        updateParameter('cloudOpacity', value);
+      };
+      
+      // 雾浓度
+      const fogSlider = document.getElementById('fog-density');
+      fogSlider.oninput = function() {
+        const value = parseFloat(this.value);
+        document.getElementById('fog-density-value').textContent = value.toFixed(3);
+        
+        log(`🌫️ 雾浓度: ${value}`);
+        updateParameter('fogDensity', value);
+      };
+      
+      // 时间
+      const timeSlider = document.getElementById('time-hours');
+      timeSlider.oninput = function() {
+        const value = parseFloat(this.value);
+        document.getElementById('time-hours-value').textContent = value.toFixed(1);
+        
+        log(`⏰ 时间: ${value}小时`);
+        updateParameter('timeOfDayHours', value);
+      };
+    }
+    
+    function updateParameter(param, value) {
+      if (!weatherEngine || !weatherEngine.controlParams) {
+        log('❌ 引擎未初始化');
+        return;
+      }
+      
+      try {
+        const oldValue = weatherEngine.controlParams[param];
+        weatherEngine.controlParams[param] = value;
+        
+        log(`参数 ${param}: ${oldValue} → ${value}`);
+        
+        // 应用更新
+        weatherEngine.applyControlParams();
+        
+        log('✅ 参数应用完成');
+        
+        // 短暂延迟后检查状态
+        setTimeout(() => {
+          checkVisualChanges(param, value);
+        }, 200);
+        
+      } catch (error) {
+        log('❌ 参数更新失败: ' + error.message);
+        console.error(error);
+      }
+    }
+    
+    function checkVisualChanges(param, value) {
+      log(`🔍 检查 ${param} 的视觉效果...`);
+      
+      switch(param) {
+        case 'sunAltitude':
+          if (weatherEngine.directionalLight) {
+            log(`  方向光强度: ${weatherEngine.directionalLight.intensity.toFixed(2)}`);
+            log(`  方向光颜色: #${weatherEngine.directionalLight.color.getHexString()}`);
+          }
+          if (weatherEngine.skySphere && weatherEngine.skySphere.material) {
+            log(`  天空球颜色: #${weatherEngine.skySphere.material.color.getHexString()}`);
+          }
+          break;
+          
+        case 'cloudOpacity':
+          if (weatherEngine.cloud1 && weatherEngine.cloud1.material) {
+            log(`  云1透明度: ${weatherEngine.cloud1.material.opacity.toFixed(2)}`);
+          }
+          if (weatherEngine.cloud2 && weatherEngine.cloud2.material) {
+            log(`  云2透明度: ${weatherEngine.cloud2.material.opacity.toFixed(2)}`);
+          }
+          break;
+          
+        case 'fogDensity':
+          if (weatherEngine.scene && weatherEngine.scene.fog) {
+            log(`  雾浓度: ${weatherEngine.scene.fog.density.toFixed(3)}`);
+          }
+          break;
+          
+        case 'timeOfDayHours':
+          log(`  计算的太阳高度角: ${weatherEngine.controlParams.sunAltitude}°`);
+          log(`  计算的太阳方位角: ${weatherEngine.controlParams.sunAzimuth}°`);
+          break;
+      }
+    }
+    
+    function testAllParameters() {
+      clearConsole();
+      log('=== 测试所有参数变化 ===');
+      
+      if (!weatherEngine) {
+        log('❌ 请先初始化引擎');
+        return;
+      }
+      
+      const tests = [
+        { param: 'sunAltitude', value: 60, delay: 1000, name: '太阳高度角' },
+        { param: 'sunAltitude', value: -10, delay: 1000, name: '太阳地平线' },
+        { param: 'cloudOpacity', value: 0.8, delay: 1000, name: '云透明度高' },
+        { param: 'cloudOpacity', value: 0.1, delay: 1000, name: '云透明度低' },
+        { param: 'fogDensity', value: 0.1, delay: 1000, name: '雾浓度高' },
+        { param: 'fogDensity', value: 0.01, delay: 1000, name: '雾浓度低' },
+        { param: 'timeOfDayHours', value: 6, delay: 1000, name: '清晨' },
+        { param: 'timeOfDayHours', value: 12, delay: 1000, name: '中午' },
+        { param: 'timeOfDayHours', value: 18, delay: 1000, name: '傍晚' },
+        { param: 'timeOfDayHours', value: 0, delay: 1000, name: '午夜' }
+      ];
+      
+      let delay = 0;
+      tests.forEach(test => {
+        setTimeout(() => {
+          log(`🧪 测试 ${test.name}: ${test.value}`);
+          weatherEngine.controlParams[test.param] = test.value;
+          weatherEngine.applyControlParams();
+        }, delay);
+        delay += test.delay;
+      });
+      
+      setTimeout(() => {
+        log('✅ 所有参数测试完成');
+      }, delay);
+    }
+    
+    // 页面加载完成
+    window.addEventListener('load', () => {
+      log('页面加载完成，请点击"初始化引擎"开始测试');
+    });
+  </script>
+</body>
+</html>
