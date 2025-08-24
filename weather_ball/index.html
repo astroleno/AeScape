@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>天气球测试</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
+      background: linear-gradient(to bottom, #1e3a8a 0%, #3b82f6 30%, #60a5fa 70%, #87ceeb 100%);
+      color: white;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 1200px;
+      width: 100%;
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 30px;
+      font-size: 2.5rem;
+      font-weight: 300;
+    }
+
+    .weather-ball-container {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 30px;
+    }
+
+    #weather-ball {
+      border-radius: 50%;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+    }
+
+    .controls {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 20px;
+      margin-bottom: 30px;
+    }
+
+    .control-group {
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(20px);
+      border-radius: 16px;
+      padding: 20px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .control-group h3 {
+      margin-bottom: 15px;
+      font-size: 1.2rem;
+      font-weight: 500;
+    }
+
+    .button-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .btn {
+      padding: 8px 16px;
+      background: rgba(255, 255, 255, 0.2);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      border-radius: 8px;
+      color: white;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      font-size: 14px;
+    }
+
+    .btn:hover {
+      background: rgba(255, 255, 255, 0.3);
+      transform: translateY(-2px);
+    }
+
+    .btn.active {
+      background: rgba(255, 255, 255, 0.4);
+      border-color: rgba(255, 255, 255, 0.6);
+    }
+
+    .status {
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(20px);
+      border-radius: 12px;
+      padding: 15px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    .param-display {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 10px;
+      margin-top: 15px;
+    }
+
+    .param-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 5px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .param-item:last-child {
+      border-bottom: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>天气球测试</h1>
+    
+    <div class="weather-ball-container">
+      <canvas id="weather-ball" width="400" height="400"></canvas>
+    </div>
+
+    <div class="controls">
+      <div class="control-group">
+        <h3>天气场景</h3>
+        <div class="button-group">
+          <button class="btn active" data-weather="clear">晴天</button>
+          <button class="btn" data-weather="cloudy">多云</button>
+          <button class="btn" data-weather="rain">雨天</button>
+          <button class="btn" data-weather="snow">雪天</button>
+          <button class="btn" data-weather="fog">雾天</button>
+          <button class="btn" data-weather="thunderstorm">雷暴</button>
+        </div>
+      </div>
+
+      <div class="control-group">
+        <h3>时间段</h3>
+        <div class="button-group">
+          <button class="btn active" data-time="day">白天</button>
+          <button class="btn" data-time="dawn">日出</button>
+          <button class="btn" data-time="dusk">黄昏</button>
+          <button class="btn" data-time="night">夜晚</button>
+        </div>
+      </div>
+
+      <div class="control-group">
+        <h3>太阳位置</h3>
+        <div class="button-group">
+          <button class="btn" data-sun="high">高角度</button>
+          <button class="btn" data-sun="medium">中角度</button>
+          <button class="btn" data-sun="low">低角度</button>
+          <button class="btn" data-sun="below">地平线下</button>
+        </div>
+      </div>
+
+      <div class="control-group">
+        <h3>月相</h3>
+        <div class="button-group">
+          <button class="btn" data-moon="new">新月</button>
+          <button class="btn" data-moon="quarter">上弦月</button>
+          <button class="btn" data-moon="full">满月</button>
+          <button class="btn" data-moon="last-quarter">下弦月</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="status">
+      <h3>当前参数</h3>
+      <div class="param-display" id="param-display">
+        <!-- 参数显示区域 -->
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { createWeatherBall } from './src/weather-ball.js';
+
+    // 测试数据
+    const testScenarios = {
+      // 晴天场景
+      clear: {
+        weather: { code: 'clear', temperature: 25, humidity: 40, visibility: 15 },
+        astronomical: {
+          sun: { azimuth: 180, altitude: 45, intensity: 0.9, isVisible: true },
+          moon: { phase: 0.5, azimuth: 90, altitude: 30, isVisible: true }
+        },
+        environmental: { airQuality: 50, timeOfDay: 'day', season: 'summer' }
+      },
+      
+      // 多云场景
+      cloudy: {
+        weather: { code: 'cloudy', temperature: 20, humidity: 70, visibility: 8 },
+        astronomical: {
+          sun: { azimuth: 180, altitude: 30, intensity: 0.6, isVisible: true },
+          moon: { phase: 0.3, azimuth: 90, altitude: 20, isVisible: true }
+        },
+        environmental: { airQuality: 60, timeOfDay: 'day', season: 'spring' }
+      },
+      
+      // 雨天场景
+      rain: {
+        weather: { code: 'rain', temperature: 15, humidity: 90, visibility: 3 },
+        astronomical: {
+          sun: { azimuth: 180, altitude: 20, intensity: 0.3, isVisible: true },
+          moon: { phase: 0.1, azimuth: 90, altitude: 10, isVisible: false }
+        },
+        environmental: { airQuality: 80, timeOfDay: 'day', season: 'autumn' }
+      },
+      
+      // 雪天场景
+      snow: {
+        weather: { code: 'snow', temperature: -5, humidity: 85, visibility: 5 },
+        astronomical: {
+          sun: { azimuth: 180, altitude: 15, intensity: 0.5, isVisible: true },
+          moon: { phase: 0.8, azimuth: 90, altitude: 25, isVisible: true }
+        },
+        environmental: { airQuality: 70, timeOfDay: 'day', season: 'winter' }
+      },
+      
+      // 雾天场景
+      fog: {
+        weather: { code: 'fog', temperature: 10, humidity: 95, visibility: 1 },
+        astronomical: {
+          sun: { azimuth: 180, altitude: 25, intensity: 0.4, isVisible: true },
+          moon: { phase: 0.2, azimuth: 90, altitude: 15, isVisible: false }
+        },
+        environmental: { airQuality: 90, timeOfDay: 'dawn', season: 'autumn' }
+      },
+      
+      // 雷暴场景
+      thunderstorm: {
+        weather: { code: 'thunderstorm', temperature: 18, humidity: 95, visibility: 2 },
+        astronomical: {
+          sun: { azimuth: 180, altitude: 10, intensity: 0.2, isVisible: true },
+          moon: { phase: 0.0, azimuth: 90, altitude: 5, isVisible: false }
+        },
+        environmental: { airQuality: 100, timeOfDay: 'dusk', season: 'summer' }
+      }
+    };
+
+    // 时间段配置
+    const timeConfigs = {
+      day: { sunAltitude: 45, timeOfDay: 'day' },
+      dawn: { sunAltitude: 5, timeOfDay: 'dawn' },
+      dusk: { sunAltitude: -5, timeOfDay: 'dusk' },
+      night: { sunAltitude: -20, timeOfDay: 'night' }
+    };
+
+    // 太阳位置配置
+    const sunConfigs = {
+      high: { altitude: 60, intensity: 1.0 },
+      medium: { altitude: 30, intensity: 0.8 },
+      low: { altitude: 5, intensity: 0.6 },
+      below: { altitude: -10, intensity: 0.0 }
+    };
+
+    // 月相配置
+    const moonConfigs = {
+      new: { phase: 0.0, phaseName: '新月' },
+      quarter: { phase: 0.25, phaseName: '上弦月' },
+      full: { phase: 0.5, phaseName: '满月' },
+      'last-quarter': { phase: 0.75, phaseName: '下弦月' }
+    };
+
+    // 初始化天气球 (确保只创建一次)
+    const canvas = document.getElementById('weather-ball');
+    
+    // 清理可能存在的旧实例
+    if (window.weatherBallInstance) {
+      console.log('Destroying existing weather ball instance');
+      window.weatherBallInstance.destroy();
+    }
+    
+    // 重新创建canvas元素避免上下文冲突
+    const oldCanvas = canvas;
+    const newCanvas = document.createElement('canvas');
+    newCanvas.id = 'weather-ball';
+    newCanvas.width = 400;
+    newCanvas.height = 400;
+    newCanvas.style.borderRadius = '50%';
+    newCanvas.style.boxShadow = '0 20px 40px rgba(0, 0, 0, 0.3)';
+    oldCanvas.parentNode.replaceChild(newCanvas, oldCanvas);
+    
+    let weatherBall = createWeatherBall(newCanvas, testScenarios.clear);
+    window.weatherBallInstance = weatherBall; // 保存全局引用
+
+    // 当前状态
+    let currentState = {
+      weather: 'clear',
+      time: 'day',
+      sun: 'medium',
+      moon: 'full'
+    };
+
+    // 更新显示
+    function updateDisplay() {
+      const params = weatherBall.params;
+      const display = document.getElementById('param-display');
+      
+      display.innerHTML = `
+        <div class="param-item">
+          <span>天气:</span>
+          <span>${params.weather.code}</span>
+        </div>
+        <div class="param-item">
+          <span>温度:</span>
+          <span>${params.weather.temperature}°C</span>
+        </div>
+        <div class="param-item">
+          <span>湿度:</span>
+          <span>${params.weather.humidity}%</span>
+        </div>
+        <div class="param-item">
+          <span>太阳高度:</span>
+          <span>${params.astronomical.sun.altitude}°</span>
+        </div>
+        <div class="param-item">
+          <span>太阳方位:</span>
+          <span>${params.astronomical.sun.azimuth}°</span>
+        </div>
+        <div class="param-item">
+          <span>时间段:</span>
+          <span>${params.environmental.timeOfDay}</span>
+        </div>
+      `;
+    }
+
+    // 更新天气球
+    function updateWeatherBall() {
+      const scenario = testScenarios[currentState.weather];
+      const timeConfig = timeConfigs[currentState.time];
+      const sunConfig = sunConfigs[currentState.sun];
+      const moonConfig = moonConfigs[currentState.moon];
+
+      const newParams = {
+        ...scenario,
+        astronomical: {
+          ...scenario.astronomical,
+          sun: {
+            ...scenario.astronomical.sun,
+            altitude: sunConfig.altitude,
+            intensity: sunConfig.intensity
+          },
+          moon: {
+            ...scenario.astronomical.moon,
+            ...moonConfig
+          }
+        },
+        environmental: {
+          ...scenario.environmental,
+          timeOfDay: timeConfig.timeOfDay
+        }
+      };
+
+      weatherBall.update(newParams);
+      updateDisplay();
+    }
+
+    // 事件监听
+    document.querySelectorAll('[data-weather]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('[data-weather]').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentState.weather = btn.dataset.weather;
+        updateWeatherBall();
+      });
+    });
+
+    document.querySelectorAll('[data-time]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('[data-time]').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentState.time = btn.dataset.time;
+        updateWeatherBall();
+      });
+    });
+
+    document.querySelectorAll('[data-sun]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('[data-sun]').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentState.sun = btn.dataset.sun;
+        updateWeatherBall();
+      });
+    });
+
+    document.querySelectorAll('[data-moon]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('[data-moon]').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentState.moon = btn.dataset.moon;
+        updateWeatherBall();
+      });
+    });
+
+    // 页面可见性变化处理
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        weatherBall.pause();
+      } else {
+        weatherBall.resume();
+      }
+    });
+
+    // 窗口大小变化处理
+    window.addEventListener('resize', () => {
+      weatherBall.resize(window.innerWidth, window.innerHeight);
+    });
+
+    // 初始化显示
+    updateDisplay();
+
+    console.log('天气球测试页面已加载');
+  </script>
+</body>
+</html>

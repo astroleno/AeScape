@@ -1,0 +1,23 @@
+{
+  "name": "weather-ball",
+  "version": "1.0.0",
+  "description": "3D天气球渲染引擎 - 实时天气可视化",
+  "main": "dist/weather-ball.js",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": ["weather", "3d", "threejs", "visualization"],
+  "author": "AeScape Team",
+  "license": "MIT",
+  "dependencies": {
+    "three": "^0.158.0",
+    "suncalc": "^1.9.0"
+  },
+  "devDependencies": {
+    "vite": "^5.0.0"
+  }
+}

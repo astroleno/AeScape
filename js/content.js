@@ -480,7 +480,6 @@ class AeScapeFloatingBall {
       document.addEventListener('keydown', handleEscKey);
     }, 100);
   }
-  }
 
   generateDetailHTML(weather) {
     const weatherDescriptions = {
