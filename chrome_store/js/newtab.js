@@ -364,29 +364,22 @@ class AeScapeNewTab {
   }
 
   async updateWeatherTheme(weather) {
-    // 统一从背景服务获取主题数据
     try {
-      const themeResponse = await this.sendMessageWithRetry({ type: 'theme.getCurrent' }, 4, 200);
-      
-      if (themeResponse?.success && themeResponse?.data) {
-        this.applyThemeData(themeResponse.data);
-        
-        // 通知悬浮球同步主题（如果扩展上下文可用）
-        if (this.hasExtensionContext()) {
-          try {
-            // 发送主题更新消息给所有内容脚本
-            await this.sendMessageWithRetry({ 
-              type: 'theme.updated', 
-              data: themeResponse.data 
-            }, 2, 100);
-            console.log('[AeScape] 已发送主题更新消息给悬浮球');
-          } catch (e) {
-            console.warn('[AeScape] 发送主题更新消息失败:', e.message);
-          }
+      // 优先直接从 storage 读取统一主题快照（由背景集中写入）
+      if (chrome?.storage?.local?.get) {
+        const stored = await chrome.storage.local.get(['currentThemeData']);
+        if (stored?.currentThemeData) {
+          this.applyThemeData(stored.currentThemeData);
+          return;
         }
       }
+      // 兜底：向背景请求一次
+      const themeResponse = await this.sendMessageWithRetry({ type: 'theme.getCurrent' }, 3, 150);
+      if (themeResponse?.success && themeResponse?.data) {
+        this.applyThemeData(themeResponse.data);
+      }
     } catch (error) {
-      console.warn('Failed to get theme from background:', error);
+      console.warn('Failed to apply theme:', error);
     }
   }
 
@@ -749,4 +742,17 @@ class AeScapeNewTab {
 // 页面加载完成后初始化
 document.addEventListener('DOMContentLoaded', () => {
   window.aeScape = new AeScapeNewTab();
+
+  // 监听 storage 变更，主题变化时即时更新
+  try {
+    if (chrome?.storage?.onChanged) {
+      chrome.storage.onChanged.addListener((changes, area) => {
+        if (area === 'local' && changes.currentThemeData?.newValue) {
+          try {
+            window.aeScape.applyThemeData(changes.currentThemeData.newValue);
+          } catch (_) {}
+        }
+      });
+    }
+  } catch (_) {}
 });

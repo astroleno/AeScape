@@ -20,7 +20,8 @@ class UnifiedThemeSystem {
     const timeSlot = this.getTimeSlot(hour, isNight, sunTimes);
     const themeKey = `${weatherCode}-${timeSlot}`;
     
-    return this.THEME_MAP[themeKey] || this.THEME_MAP['clear-day'];
+    // 修复：原先使用了不存在的 'clear-day' 作为兜底键，改为更稳妥的 'clear-noon'
+    return this.THEME_MAP[themeKey] || this.THEME_MAP['clear-noon'];
   }
 
   /**
@@ -529,33 +530,57 @@ window.unifiedTheme = new UnifiedThemeSystem();
 window.GlobalThemeManager = {
   currentThemeData: null,
   listeners: [],
-  
-  // 设置全局主题数据
-  setGlobalTheme(weatherCode, hour, isNight, sunTimes = null) {
-    const theme = window.unifiedTheme.getTheme(weatherCode, hour, isNight, sunTimes);
-    this.currentThemeData = {
+
+  /**
+   * 统一构建主题快照，保证四件套读取到的是完全一致的数据结构
+   * 并且在必要时提供分组（tab+popup 一组；ball+card 一组）的别名字段
+   */
+  buildThemeData(theme, weatherCode, hour, isNight, sunTimes) {
+    // 尽量保持简单：所有来源都指向同一底层 theme，以避免漂移
+    const snapshot = {
       weatherCode,
       hour,
       isNight,
       sunTimes,
       theme,
-      // 统一的主题数据格式
-      floating: { gradient: theme.gradient, text: theme.text },
-      popup: { gradient: theme.gradient, text: theme.text },
+      // 四件套分组：tab 与 popup 共享 newtab/popup；悬浮球与卡片共享 floating/panel
       newtab: theme,
+      popup: { gradient: theme.gradient, text: theme.text },
+      floating: { gradient: theme.gradient, text: theme.text },
       panel: { gradient: theme.gradient, text: theme.text, borderColor: this.getBorderColor(theme.text) }
     };
-    
-    console.log('[GlobalThemeManager] 全局主题已更新:', this.currentThemeData);
-    // 将主题快照写入 storage，供内容脚本在无 GlobalThemeManager 时读取
+    return snapshot;
+  },
+  
+  // 设置全局主题数据
+  setGlobalTheme(weatherCode, hour, isNight, sunTimes = null) {
     try {
-      if (chrome?.storage?.local?.set) {
-        chrome.storage.local.set({ currentThemeData: this.currentThemeData }).catch?.(() => {});
+      const theme = window.unifiedTheme.getTheme(weatherCode, hour, isNight, sunTimes);
+      // 使用统一构建器，避免字段不一致
+      this.currentThemeData = this.buildThemeData(theme, weatherCode, hour, isNight, sunTimes);
+      
+      console.log('[GlobalThemeManager] 全局主题已更新:', this.currentThemeData);
+      
+      // 将主题快照写入 storage，供内容脚本在无 GlobalThemeManager 时读取
+      try {
+        if (chrome?.storage?.local?.set) {
+          chrome.storage.local.set({ currentThemeData: this.currentThemeData }).catch?.(() => {});
+        }
+      } catch (_) {}
+      
+      // 通知所有监听器（本页内订阅者）
+      this.notifyListeners();
+      
+      // 额外：派发自定义事件，方便无直接引用的订阅者监听
+      try {
+        const evt = new CustomEvent('AeScapeThemeUpdate', { detail: this.currentThemeData });
+        window.dispatchEvent(evt);
+      } catch (e) {
+        console.warn('[GlobalThemeManager] 派发主题事件失败:', e);
       }
-    } catch (_) {}
-    
-    // 通知所有监听器
-    this.notifyListeners();
+    } catch (err) {
+      console.warn('[GlobalThemeManager] 设置全局主题失败:', err);
+    }
   },
   
   // 获取边框颜色
@@ -594,28 +619,52 @@ window.GlobalThemeManager = {
       return;
     }
     
-    const { theme, weatherCode, hour, isNight, sunTimes } = this.currentThemeData;
+    const { weatherCode, hour, isNight, sunTimes } = this.currentThemeData;
+
+    // 保持 tab 与 popup 风格完全同步：两者均由统一主题驱动
+    try {
+      if (document.body && document.body.classList.contains('popup-body')) {
+        window.unifiedTheme.applyToPopup(weatherCode, hour, isNight, sunTimes);
+      }
+    } catch (e) { console.warn('[GlobalThemeManager] 应用到 popup 失败:', e); }
+
+    try {
+      if (document.querySelector('.background-layer')) {
+        window.unifiedTheme.applyToNewTab(weatherCode, hour, isNight, sunTimes);
+      }
+    } catch (e) { console.warn('[GlobalThemeManager] 应用到 newtab 失败:', e); }
     
-    // 应用到popup
-    if (document.body && document.body.classList.contains('popup-body')) {
-      window.unifiedTheme.applyToPopup(weatherCode, hour, isNight, sunTimes);
-    }
-    
-    // 应用到新标签页
-    if (document.querySelector('.background-layer')) {
-      window.unifiedTheme.applyToNewTab(weatherCode, hour, isNight);
-    }
-    
-    // 通知悬浮球更新（如果存在）
-    if (window.aescape && window.aescape.applyGlobalTheme) {
-      window.aescape.applyGlobalTheme(this.currentThemeData);
-    }
+    // 通知悬浮球更新（如果存在集成方）
+    try {
+      if (window.aescape && window.aescape.applyGlobalTheme) {
+        window.aescape.applyGlobalTheme(this.currentThemeData);
+      }
+    } catch (e) { console.warn('[GlobalThemeManager] 通知悬浮球失败:', e); }
   }
 };
 
 // 初始化默认主题
-document.addEventListener('DOMContentLoaded', function() {
-  const hour = new Date().getHours();
-  const isNight = hour < 6 || hour > 19;
-  window.GlobalThemeManager.setGlobalTheme('clear', hour, isNight);
+document.addEventListener('DOMContentLoaded', async function() {
+  try {
+    // 若为 Popup 页面，交由 popup.js 从 storage 驱动，避免覆盖
+    if (document.body && document.body.classList.contains('popup-body')) {
+      return;
+    }
+
+    // 若 storage 已有统一主题快照，则不在前端主动设置，避免与后台冲突
+    if (chrome?.storage?.local?.get) {
+      try {
+        const stored = await chrome.storage.local.get(['currentThemeData']);
+        if (stored && stored.currentThemeData) {
+          return;
+        }
+      } catch (_) {}
+    }
+
+    const hour = new Date().getHours();
+    const isNight = hour < 6 || hour > 19;
+    window.GlobalThemeManager.setGlobalTheme('clear', hour, isNight);
+  } catch (_) {
+    // 忽略初始化失败
+  }
 });

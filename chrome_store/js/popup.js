@@ -8,7 +8,22 @@ class AeScapePopup {
     this.init();
   }
 
+  // 将梯度字符串中的 rgb() 转为 rgba(alpha)，避免完全不透明导致看不到模糊
+  makeTranslucentGradient(gradientString, alpha = 0.4) {
+    try {
+      if (!gradientString || typeof gradientString !== 'string') return gradientString;
+      if (gradientString.includes('rgba(')) return gradientString; // 已是 rgba
+      return gradientString.replace(/rgb\s*\((\s*\d+\s*),(\s*\d+\s*),(\s*\d+\s*)\)/g,
+        (m, r, g, b) => `rgba(${parseInt(r)}, ${parseInt(g)}, ${parseInt(b)}, ${alpha})`);
+    } catch (_) {
+      return gradientString;
+    }
+  }
+
   async init() {
+    // 将页面标记为popup，便于全局主题管理器识别并应用样式
+    try { document.body.classList.add('popup-body'); } catch (_) {}
+
     // 首先尝试从background获取当前主题，确保popup立即有正确的外观
     await this.initializeTheme();
     await this.loadWeatherData();
@@ -18,23 +33,32 @@ class AeScapePopup {
   // 初始化主题 - 确保popup立即显示正确颜色
   async initializeTheme() {
     try {
-      const themeResponse = await chrome.runtime.sendMessage({
-        type: 'theme.getCurrent'
-      });
-      
+      // 先尝试从 storage 读取统一主题快照
+      try {
+        const stored = await chrome.storage.local.get(['currentThemeData']);
+        if (stored?.currentThemeData) {
+          this.applyThemeData(stored.currentThemeData);
+        }
+      } catch (_) {}
+
+      // 再向后台请求一次兜底
+      const themeResponse = await chrome.runtime.sendMessage({ type: 'theme.getCurrent' });
       if (themeResponse?.success && themeResponse?.data) {
         this.applyThemeData(themeResponse.data);
       }
     } catch (error) {
       console.warn('Failed to initialize theme:', error);
-      // 设置默认主题变量，避免白色背景
-      const root = document.documentElement;
-      const hour = new Date().getHours();
-      const isNight = hour < 6 || hour > 19;
-      root.style.setProperty('--theme-gradient', isNight ? 
-        'linear-gradient(135deg, rgb(31, 40, 91) 0%, rgb(46, 54, 96) 100%)' :
-        'linear-gradient(135deg, rgba(66, 165, 245, 0.2) 0%, rgba(102, 187, 106, 0.05) 100%)');
-      root.style.setProperty('--theme-text', isNight ? 'rgba(255, 255, 255, 0.98)' : 'rgba(33, 33, 33, 0.9)');
+    } finally {
+      // 监听 storage 变更，保持与全局主题同步
+      try {
+        if (chrome?.storage?.onChanged) {
+          chrome.storage.onChanged.addListener((changes, area) => {
+            if (area === 'local' && changes.currentThemeData?.newValue) {
+              try { this.applyThemeData(changes.currentThemeData.newValue); } catch (_) {}
+            }
+          });
+        }
+      } catch (_) {}
     }
   }
 
@@ -307,23 +331,44 @@ class AeScapePopup {
   // 应用主题样式到popup
   applyThemeStyles(theme) {
     const root = document.documentElement;
-    
-    // 简化处理，直接使用原始渐变，不进行字符串处理
+
     const gradient = theme.gradient || theme.primary;
-    
+
     if (gradient) {
       root.style.setProperty('--theme-gradient', gradient);
       console.log('Applied theme gradient:', gradient);
     }
-    
+
     if (theme.text) {
       root.style.setProperty('--theme-text', theme.text);
     }
-    
+
     // 设置其他主题变量
     if (theme.primary) root.style.setProperty('--theme-primary', theme.primary);
     if (theme.secondary) root.style.setProperty('--theme-secondary', theme.secondary);
     if (theme.accent) root.style.setProperty('--theme-accent', theme.accent);
+
+    // 不透明：直接应用主题渐变与文字颜色到 body（无玻璃/无模糊）
+    try {
+      const body = document.body;
+      body.style.setProperty('background', gradient || 'transparent', 'important');
+      body.style.removeProperty('background-blend-mode');
+      body.style.removeProperty('backdrop-filter');
+      body.style.removeProperty('-webkit-backdrop-filter');
+      if (theme.text) {
+        body.style.setProperty('color', theme.text, 'important');
+      }
+      body.style.setProperty('transition', 'none', 'important');
+
+      // 还原指标区域为“无容器”视觉
+      try {
+        document.querySelectorAll('.stat-item').forEach(el => {
+          el.style.background = 'none';
+          el.style.border = 'none';
+          el.style.boxShadow = 'none';
+        });
+      } catch (_) {}
+    } catch (_) {}
   }
 
 }

@@ -28,6 +28,9 @@ class WeatherBackgroundService {
       if (this.apiKey && this.currentLocation) {
         await this.updateWeatherData();
         this.setupPeriodicUpdates();
+      } else {
+        // 即使没有API，也写入一份基于默认数据的主题快照，避免前端不同步
+        try { await this.writeThemeSnapshot(); } catch (_) {}
       }
       
       console.log('Weather Background Service initialized');
@@ -266,6 +269,9 @@ class WeatherBackgroundService {
         lastUpdate: this.currentWeather.timestamp
       });
 
+      // 同步写入统一主题快照，供四件套直接读取
+      try { await this.writeThemeSnapshot(); } catch (e) { console.warn('Write theme snapshot failed:', e); }
+
       console.log('Weather data updated successfully using Current Weather API');
       return this.currentWeather;
       
@@ -342,8 +348,10 @@ class WeatherBackgroundService {
     
     if (this.apiKey) {
       await this.updateWeatherData();
+    } else {
+      try { await this.writeThemeSnapshot(); } catch (_) {}
     }
-
+    
     console.log('Location updated:', this.currentLocation);
     return this.currentLocation;
   }
@@ -393,17 +401,48 @@ class WeatherBackgroundService {
       clearInterval(this.updateInterval);
     }
 
-    this.updateInterval = setInterval(async () => {
+    // 对齐到最近的15分钟刻度（00/15/30/45），首次触发后每30分钟检查
+    const alignToQuarterHour = () => {
+      const now = new Date();
+      const minutes = now.getMinutes();
+      const nextQuarter = Math.ceil(minutes / 15) * 15;
+      const deltaMinutes = (nextQuarter === 60 ? 60 - minutes : nextQuarter - minutes);
+      const ms = (deltaMinutes === 0 ? 1 : deltaMinutes) * 60 * 1000;
+      setTimeout(async () => {
+        await this.tickQuarterHour();
+        // 之后每15分钟对齐一次主题写入
+        setInterval(() => this.tickQuarterHour().catch(() => {}), 15 * 60 * 1000);
+      }, ms);
+    };
+
+    alignToQuarterHour();
+
+    console.log('Periodic weather updates enabled (aligned to quarter-hour)');
+  }
+
+  // 每到 00/15/30/45 触发：优先更新天气（若有API），并写主题快照
+  async tickQuarterHour() {
+    try {
       if (this.apiKey && this.currentLocation) {
         try {
           await this.updateWeatherData();
-        } catch (error) {
-          console.error('Periodic update failed:', error);
+        } catch (e) {
+          // 网络失败：指数退避，最多10分钟
+          let backoff = 60 * 1000; // 1m
+          for (let i = 0; i < 4; i++) {
+            await new Promise(r => setTimeout(r, backoff));
+            try {
+              await this.updateWeatherData();
+              break;
+            } catch (_) {
+              backoff = Math.min(backoff * 2, 10 * 60 * 1000);
+            }
+          }
         }
       }
-    }, 30 * 60 * 1000); // 30分钟
-
-    console.log('Periodic weather updates enabled (30 minutes interval)');
+    } finally {
+      try { await this.writeThemeSnapshot(); } catch (_) {}
+    }
   }
 }
 
@@ -651,17 +690,20 @@ class BackgroundThemeSystem {
       const sunset = this.parseTime(sunTimes.sunset);
       
       if (hour >= sunrise - 1 && hour < sunrise + 1) return 'dawn';
-      if (hour >= sunrise + 1 && hour < 11) return 'morning';
       if (hour >= 11 && hour < 14) return 'noon';
+      if (hour >= sunrise + 1 && hour < 11) return 'morning';
       if (hour >= 14 && hour < sunset - 1) return 'afternoon';
       if (hour >= sunset - 1 && hour <= sunset + 1) return 'sunset';
       if (hour > sunset + 1 && hour < 22) return 'evening';
       return 'night';
     }
     
+    // 关键修正：如果明确传入 isNight=true，直接判定为夜间
+    if (isNight === true) return 'night';
     if (isNight === null) {
       isNight = hour < 6 || hour > 19;
     }
+    if (isNight) return 'night';
     
     if (hour >= 5 && hour < 7) return 'dawn';
     if (hour >= 7 && hour < 11) return 'morning';
@@ -767,6 +809,18 @@ weatherService.setupMessageHandlers = function() {
       return true;
     }
   });
+};
+
+// 添加写主题快照的工具方法
+WeatherBackgroundService.prototype.writeThemeSnapshot = async function() {
+  try {
+    const themeData = this.themeSystem.calculateThemeData(this.currentWeather, this.currentLocation);
+    if (themeData) {
+      await chrome.storage.local.set({ currentThemeData: themeData });
+    }
+  } catch (e) {
+    console.warn('Failed to write theme snapshot:', e);
+  }
 };
 
 // 导出用于调试

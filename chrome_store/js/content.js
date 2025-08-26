@@ -68,6 +68,47 @@ class AeScapeFloatingBall {
       
       // 注册全局主题管理器监听器（再次兜底检测一次）
       await this.setupTheme();
+
+      // 优先：监听 storage 统一主题快照变化
+      try {
+        if (this.hasExtensionContext() && chrome.storage?.onChanged) {
+          chrome.storage.onChanged.addListener((changes, area) => {
+            if (area === 'local' && changes.currentThemeData?.newValue) {
+              try {
+                this.applyTheme(changes.currentThemeData.newValue);
+                if (this.panel) {
+                  const glass = 'linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.04))';
+                  const base = this.makeTranslucentGradient(this.getCurrentThemeGradient(), 0.6);
+                  this.panel.style.background = `${glass}, ${base}`;
+                  this.panel.style.backgroundBlendMode = 'overlay';
+                  this.panel.style.backdropFilter = 'blur(20px)';
+                  this.panel.style.webkitBackdropFilter = 'blur(20px)';
+                  this.panel.style.border = `1px solid ${this.getThemeBorderColor()}`;
+                  this.panel.style.color = this.getCurrentThemeTextColor();
+                }
+              } catch (_) {}
+            }
+          });
+        }
+      } catch (_) {}
+
+      // 监听统一主题事件，跨上下文同步（与 GlobalThemeManager.notifyListeners 互补）
+      try {
+        window.addEventListener('AeScapeThemeUpdate', (evt) => {
+          try {
+            const data = evt?.detail;
+            if (data) {
+              this.applyTheme(data);
+              if (this.panel) {
+                this.panel.style.background = this.getCurrentThemeGradient();
+                this.panel.style.color = this.getCurrentThemeTextColor();
+              }
+            }
+          } catch (e) {
+            console.warn('[AeScape] 主题事件处理失败:', e);
+          }
+        });
+      } catch (_) {}
       
       console.log('[AeScape] 悬浮球系统初始化完成');
       
@@ -199,7 +240,9 @@ class AeScapeFloatingBall {
       boxShadow: '0 6px 24px rgba(0, 0, 0, 0.2), 0 2px 8px rgba(0, 0, 0, 0.1)',
       userSelect: 'none',
       opacity: '0',
-      transform: 'scale(0.8)'
+      transform: 'scale(0.8)',
+      backdropFilter: 'blur(20px)',
+      WebkitBackdropFilter: 'blur(20px)'
     });
 
     // 创建内容结构
@@ -362,7 +405,10 @@ class AeScapeFloatingBall {
     try {
       // 检查扩展是否可用
       if (!this.hasExtensionContext()) {
-        console.warn('[AeScape] 扩展上下文不可用，使用默认数据');
+        if (!window.__AeScapeLoggedNoContext) {
+          console.warn('[AeScape] 扩展上下文不可用，使用默认数据');
+          window.__AeScapeLoggedNoContext = true;
+        }
         this.useDefaultWeatherData();
         return;
       }
@@ -374,7 +420,10 @@ class AeScapeFloatingBall {
         try { await this.sendMessageWithRetry({ type: 'ping' }, 1, 0); } catch (_) {}
         weatherResponse = await this.sendMessageWithRetry({ type: 'weather.getCurrent' }, 4, 200);
       } catch (msgError) {
-        console.warn('[AeScape] 消息传递失败:', msgError.message, '使用默认数据');
+        if (!window.__AeScapeLoggedMsgFail) {
+          console.warn('[AeScape] 消息传递失败:', msgError.message, '使用默认数据');
+          window.__AeScapeLoggedMsgFail = true;
+        }
         this.useDefaultWeatherData();
         return;
       }
@@ -457,55 +506,27 @@ class AeScapeFloatingBall {
       iconElement.innerHTML = iconSvg;
     }
 
-    // 更新主题（确保与新标签页同步）
-    this.updateThemeWithWeather(weatherData);
-  }
-
-  // 基于天气数据更新主题（与新标签页保持同步）
-  async updateThemeWithWeather(weatherData) {
-    if (!this.ball || !weatherData) return;
-
-    console.log('[AeScape] 基于天气数据更新主题');
-    
-    try {
-      // 1. 优先使用与新标签页相同的主题计算逻辑
-      if (window.unifiedTheme) {
-        const hour = new Date().getHours();
-        const weatherCode = weatherData.weather?.code || 'clear';
-        const isNight = weatherData.env?.isNight || (hour < 6 || hour > 19);
-        
-        // 使用与新标签页完全相同的主题计算
-        const theme = window.unifiedTheme.getTheme(weatherCode, hour, isNight);
-        const themeData = {
-          weatherCode,
-          hour,
-          isNight,
-          theme,
-          floating: { gradient: theme.gradient, text: theme.text },
-          popup: { gradient: theme.gradient, text: theme.text },
-          newtab: theme,
-          panel: { gradient: theme.gradient, text: theme.text }
-        };
-        
-        console.log('[AeScape] 主题已更新（本地计算）:', themeData);
-        this.applyTheme(themeData);
-        return;
-      }
-      
-      // 2. 备用方案：使用 fallback 主题
-      this.applyFallbackTheme(weatherData);
-      
-    } catch (error) {
-      console.warn('[AeScape] 主题更新失败:', error);
-      this.applyFallbackTheme(weatherData);
-    }
+    // 更新主题
+    this.updateTheme(weatherData);
   }
 
   async updateTheme(weatherData) {
     if (!this.ball || !weatherData) return;
 
     console.log('[AeScape] 更新主题');
-    // 优先使用全局主题管理器（如果存在）
+
+    // 优先使用 storage 的统一主题快照
+    try {
+      if (this.hasExtensionContext() && chrome.storage?.local?.get) {
+        const stored = await chrome.storage.local.get(['currentThemeData']);
+        if (stored?.currentThemeData) {
+          this.applyTheme(stored.currentThemeData);
+          return;
+        }
+      }
+    } catch (_) {}
+
+    // 其次使用 GlobalThemeManager（若存在于当前页，如新标签页/弹窗）
     try {
       const globalTheme = window.GlobalThemeManager?.getCurrentTheme?.();
       if (globalTheme?.floating) {
@@ -518,7 +539,7 @@ class AeScapeFloatingBall {
       }
     } catch (_) {}
 
-    // 使用本地统一主题系统计算
+    // 最后兜底：本地计算
     this.applyFallbackTheme(weatherData);
   }
 
@@ -608,6 +629,10 @@ class AeScapeFloatingBall {
     this.panel = document.createElement('div');
     this.panel.id = 'aescape-detail-panel';
     
+    const baseGradient = this.getCurrentThemeGradient();
+    const glassLayer = 'linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.04))';
+    const translucent = this.makeTranslucentGradient(baseGradient, 0.6);
+    
     // 设置面板样式
     this.panel.style.cssText = `
       position: fixed;
@@ -615,10 +640,12 @@ class AeScapeFloatingBall {
       right: 20px;
       width: 320px;
       min-height: 300px;
-      background: ${this.getCurrentThemeGradient()};
+      background: ${glassLayer}, ${translucent};
+      background-blend-mode: overlay;
       backdrop-filter: blur(20px);
-      border: none;
-      border-radius: 0px;
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid ${this.getThemeBorderColor()};
+      border-radius: 12px;
       padding: 0;
       z-index: 10001;
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'PingFang SC', sans-serif;
@@ -817,10 +844,11 @@ class AeScapeFloatingBall {
               flex-direction: column;
               text-align: center;
               opacity: 0.9;
-              padding: 10px 8px;
+              padding: 8px 6px;
               transition: all 200ms ease;
-              background: rgba(255, 255, 255, 0.03);
-              border-radius: 8px;
+              background: none; /* 移除容器背景 */
+              border: none;     /* 移除容器边框 */
+              border-radius: 0; /* 移除容器圆角 */
             ">
               <span style="
                 font-size: 0.7rem;
@@ -841,10 +869,11 @@ class AeScapeFloatingBall {
               flex-direction: column;
               text-align: center;
               opacity: 0.9;
-              padding: 10px 8px;
+              padding: 8px 6px;
               transition: all 200ms ease;
-              background: rgba(255, 255, 255, 0.03);
-              border-radius: 8px;
+              background: none; /* 移除容器背景 */
+              border: none;     /* 移除容器边框 */
+              border-radius: 0; /* 移除容器圆角 */
             ">
               <span style="
                 font-size: 0.7rem;
@@ -865,10 +894,11 @@ class AeScapeFloatingBall {
               flex-direction: column;
               text-align: center;
               opacity: 0.9;
-              padding: 10px 8px;
+              padding: 8px 6px;
               transition: all 200ms ease;
-              background: rgba(255, 255, 255, 0.03);
-              border-radius: 8px;
+              background: none; /* 移除容器背景 */
+              border: none;     /* 移除容器边框 */
+              border-radius: 0; /* 移除容器圆角 */
             ">
               <span style="
                 font-size: 0.7rem;
@@ -889,10 +919,11 @@ class AeScapeFloatingBall {
               flex-direction: column;
               text-align: center;
               opacity: 0.9;
-              padding: 10px 8px;
+              padding: 8px 6px;
               transition: all 200ms ease;
-              background: rgba(255, 255, 255, 0.03);
-              border-radius: 8px;
+              background: none; /* 移除容器背景 */
+              border: none;     /* 移除容器边框 */
+              border-radius: 0; /* 移除容器圆角 */
             ">
               <span style="
                 font-size: 0.7rem;
@@ -1023,8 +1054,10 @@ class AeScapeFloatingBall {
   // 订阅统一主题系统的后续变更（在新标签页/弹窗等扩展页面中生效）
   subscribeToGlobalTheme(applyImmediately = false) {
     try {
-      const addListener = window.GlobalThemeManager?.addListener;
-      if (typeof addListener === 'function') {
+      const addListener = window.GlobalThemeManager && typeof window.GlobalThemeManager.addListener === 'function'
+        ? window.GlobalThemeManager.addListener.bind(window.GlobalThemeManager)
+        : null;
+      if (addListener) {
         addListener((themeData) => {
           try {
             if (themeData) {
@@ -1060,7 +1093,14 @@ class AeScapeFloatingBall {
     // 应用到悬浮球
     const floatingTheme = themeData.floating || themeData.newtab || themeData.popup || null;
     if (floatingTheme) {
-      this.ball.style.setProperty('background', floatingTheme.gradient, 'important');
+      // 叠加半透明玻璃层 + 主题渐变，并开启磨砂
+      const glassOverlay = 'linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.04))';
+      const baseGradient = this.makeTranslucentGradient(floatingTheme.gradient || '', 0.65);
+      const combined = baseGradient ? `${glassOverlay}, ${baseGradient}` : glassOverlay;
+      this.ball.style.setProperty('background', combined, 'important');
+      this.ball.style.setProperty('backgroundBlendMode', 'overlay', 'important');
+      this.ball.style.setProperty('backdropFilter', 'blur(20px)', 'important');
+      this.ball.style.setProperty('-webkit-backdrop-filter', 'blur(20px)', 'important');
       this.ball.style.setProperty('color', (floatingTheme.text || 'rgba(33, 33, 33, 0.92)'), 'important');
     }
     
@@ -1068,6 +1108,18 @@ class AeScapeFloatingBall {
     this.cachedThemeData = themeData;
     if (!this.cachedThemeData.panel && this.cachedThemeData.floating) {
       this.cachedThemeData.panel = { ...this.cachedThemeData.floating };
+    }
+    
+    // 如果面板已打开，更新磨砂与背景
+    if (this.panel) {
+      const panelGlass = 'linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.04))';
+      const base = this.getCurrentThemeGradient();
+      this.panel.style.background = `${panelGlass}, ${base}`;
+      this.panel.style.backgroundBlendMode = 'overlay';
+      this.panel.style.backdropFilter = 'blur(20px)';
+      this.panel.style.webkitBackdropFilter = 'blur(20px)';
+      this.panel.style.border = `1px solid ${this.getThemeBorderColor()}`;
+      this.panel.style.color = this.getCurrentThemeTextColor();
     }
     
     console.log('[AeScape] 悬浮球主题已更新');
@@ -1158,6 +1210,20 @@ class AeScapeFloatingBall {
       this.ball.remove();
       this.ball = null;
       this.isVisible = false;
+    }
+  }
+
+  // 将梯度字符串中的 rgb() 转为 rgba(alpha)
+  makeTranslucentGradient(gradientString, alpha = 0.72) {
+    try {
+      if (!gradientString || typeof gradientString !== 'string') return gradientString;
+      // 已经是 rgba 的不处理
+      if (gradientString.includes('rgba(')) return gradientString;
+      // 将所有 rgb(r, g, b) 替换为 rgba(r, g, b, alpha)
+      return gradientString.replace(/rgb\s*\((\s*\d+\s*),(\s*\d+\s*),(\s*\d+\s*)\)/g,
+        (m, r, g, b) => `rgba(${parseInt(r)}, ${parseInt(g)}, ${parseInt(b)}, ${alpha})`);
+    } catch (_) {
+      return gradientString;
     }
   }
 }

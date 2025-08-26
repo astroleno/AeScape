@@ -27,8 +27,9 @@
     }
 
     :root {
-      --theme-gradient: linear-gradient(135deg, rgba(66, 165, 245, 0.2) 0%, rgba(102, 187, 106, 0.05) 100%);
-      --theme-text: rgba(255, 255, 255, 0.95);
+      /* 默认变量仅作占位，具体由 GlobalThemeManager/统一主题系统注入 */
+      --theme-gradient: transparent;
+      --theme-text: rgba(33, 33, 33, 0.92);
     }
 
     body {
@@ -187,16 +188,16 @@
       opacity: 0.9 !important;
       padding: 8px 6px !important;
       transition: all 200ms ease !important;
-      border: 1px solid rgba(255, 255, 255, 0.08) !important;
-      background: rgba(255, 255, 255, 0.03) !important;
-      border-radius: 10px !important;
+      border: none !important;
+      background: none !important;
+      border-radius: 0 !important;
       margin: 0 !important;
     }
 
     .stat-item:hover {
-      transform: translateY(-1px) !important;
-      opacity: 0.8 !important;
-      background: rgba(255, 255, 255, 0.06) !important;
+      transform: none !important;
+      opacity: 0.9 !important;
+      background: none !important;
     }
 
     .stat-item span:first-child {
@@ -365,41 +366,7 @@
     </div>
   </div>
 
-  <script>
-    // 强制移除所有可能的边框
-    document.addEventListener('DOMContentLoaded', function() {
-      const allElements = document.querySelectorAll('*');
-      allElements.forEach(el => {
-        el.style.setProperty('border', 'none', 'important');
-        el.style.setProperty('border-top', 'none', 'important');
-        el.style.setProperty('border-bottom', 'none', 'important');
-        el.style.setProperty('outline', 'none', 'important');
-      });
-      
-      // 标记为popup页面
-      document.body.classList.add('popup-body');
-      
-      // 等待GlobalThemeManager可用并应用主题
-      const checkAndApplyTheme = () => {
-        if (window.GlobalThemeManager) {
-          console.log('[Popup] 使用GlobalThemeManager');
-          const currentTheme = window.GlobalThemeManager.getCurrentTheme();
-          if (currentTheme) {
-            window.GlobalThemeManager.applyToAllComponents();
-          } else {
-            // 设置默认主题
-            const hour = new Date().getHours();
-            const isNight = hour < 6 || hour > 19;
-            window.GlobalThemeManager.setGlobalTheme('clear', hour, isNight);
-          }
-        } else {
-          setTimeout(checkAndApplyTheme, 50);
-        }
-      };
-      
-      checkAndApplyTheme();
-    });
-  </script>
+  
   <script src="js/icon-library.js"></script>
   <script src="js/theme-system.js"></script>
   <script src="js/popup.js"></script>
