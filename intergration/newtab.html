@@ -53,36 +53,32 @@
       </div>
 
       <!-- 天气卡片 -->
-      <div class="weather-card-container">
       <div class="weather-card">
-        <!-- 天气摘要（标题+城市+主信息） -->
-        <div class="weather-summary">
-          <div class="section-title">当前天气</div>
-          <div class="location-name" id="card-location-name">加载中...</div>
-          <div class="weather-main">
-          <div class="temperature-section">
-            <div class="current-temp" id="current-temp">--°</div>
-            <div class="weather-desc" id="weather-desc">天气加载中...</div>
-          </div>
-          <div class="weather-icon-section">
-            <div class="weather-icon" id="weather-icon">
-              <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                <circle cx="12" cy="12" r="5"></circle>
-                <line x1="12" y1="1" x2="12" y2="3"></line>
-                <line x1="12" y1="21" x2="12" y2="23"></line>
-                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
-                <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
-                <line x1="1" y1="12" x2="3" y2="12"></line>
-                <line x1="21" y1="12" x2="23" y2="12"></line>
-                <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
-                <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
-              </svg>
-            </div>
-          </div>
+        <!-- 天气主要信息 -->
+        <div class="section-title">当前天气</div>
+        <div class="location-name" id="card-location-name">加载中...</div>
+        
+        <!-- 温度和图标 -->
+        <div class="weather-main">
+          <div class="current-temp" id="current-temp">--°</div>
+          <div class="weather-icon" id="weather-icon">
+            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <circle cx="12" cy="12" r="5"></circle>
+              <line x1="12" y1="1" x2="12" y2="3"></line>
+              <line x1="12" y1="21" x2="12" y2="23"></line>
+              <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+              <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+              <line x1="1" y1="12" x2="3" y2="12"></line>
+              <line x1="21" y1="12" x2="23" y2="12"></line>
+              <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+              <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+            </svg>
           </div>
         </div>
+        
+        <div class="weather-desc" id="weather-desc">天气加载中...</div>
 
-        <!-- 详细信息网格 - 只显示核心3项 -->
+        <!-- 详细信息 -->
         <div class="weather-details-grid">
           <div class="detail-card">
             <div class="detail-label">体感</div>
@@ -98,7 +94,6 @@
           </div>
         </div>
       </div>
-    </div>
     </div>
   </div>
 

@@ -7,7 +7,17 @@
 class WeatherVideoMapper {
   constructor() {
     // 基于 video-index.md 的完整映射表
-    // 注意：路径需要相对于项目根目录
+    // 支持网页测试和Chrome插件双重兼容
+    
+    // 智能路径解析 - 兼容网页和Chrome扩展环境
+    this.getVideoUrl = (videoPath) => {
+      // 如果是Chrome扩展环境
+      if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.getURL) {
+        return chrome.runtime.getURL(videoPath);
+      }
+      // 如果是网页测试环境，添加相对路径前缀
+      return './' + videoPath;
+    };
     this.videoMap = {
       // 晴天 - 与多云共用视频
       clear: {
@@ -182,7 +192,7 @@ class WeatherVideoMapper {
       console.log(`WeatherVideoMapper: 选择视频 - 天气: ${weatherType}, 强度: ${intensity}, 视频: ${selectedVideo}`);
       
       return {
-        videoPath: selectedVideo,
+        videoPath: this.getVideoUrl(selectedVideo),
         hasAlpha: weatherData.hasAlpha,
         blendMode: weatherData.blendMode || 'screen',
         description: weatherData.description,
@@ -215,7 +225,7 @@ class WeatherVideoMapper {
    */
   getFallbackVideo() {
     return {
-      videoPath: '../video/tab/c/cloudy_1.webm',
+      videoPath: this.getVideoUrl('video/tab/c/cloudy_1.webm'),
       hasAlpha: true,
       blendMode: 'lighten',
       description: '回退到多云效果（lighten模式）',

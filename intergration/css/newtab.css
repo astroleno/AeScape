@@ -210,64 +210,50 @@ html, body {
   letter-spacing: 0.02em;
 }
 
-/* 天气卡片 - 统一设计 */
-.weather-card-container {
+/* 天气卡片 - 简化版设计 */
+.weather-card {
   width: 100%;
   order: 3;
-}
-
-.weather-card {
   text-align: center;
   padding: var(--spacing-lg) 0;
   background: none;
   border: none;
   box-shadow: none;
-  display: grid;              /* 强制所有直接子项居中 */
-  justify-items: center;      /* 包括“当前天气/Shanghai”等块级元素 */
-  row-gap: var(--spacing-lg);
+  display: grid;
+  justify-items: center;
+  row-gap: var(--spacing-md);
 }
 
-/* 让标题与红框区域共享同一垂直中线 */
-.weather-card > .section-title,
-.weather-card > .location-name,
-.weather-card > .weather-summary {
-  margin-left: auto;
-  margin-right: auto;
+/* 标题和位置 */
+.weather-card .section-title {
+  font-size: var(--text-sm);
+  font-weight: 500;
+  opacity: 0.7;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: var(--spacing-xs);
 }
 
-/* 居中“当前天气”和位置名称 */
-.weather-card .section-title,
 .weather-card .location-name {
-  display: block;
-  text-align: center;
+  font-size: var(--text-lg);
+  font-weight: 400;
+  margin-bottom: var(--spacing-lg);
 }
-
 
 /* 主要天气信息 - 横向布局 */
-.weather-summary {
-  display: grid;
-  justify-items: center; /* 让整块红框区域的几何中心与标题对齐 */
-  width: 100%;
-}
-
 .weather-main {
   display: grid;
-  grid-template-columns: auto auto; /* 两列内容自适应 */
+  grid-template-columns: auto auto;
   align-items: center;
-  justify-content: center; /* 维持整体居中 */
+  justify-content: center;
   column-gap: var(--spacing-lg);
-  margin-bottom: var(--spacing-xl);
-}
-
-.temperature-section {
-  text-align: center; /* 顶部温度与描述统一居中对齐 */
+  margin-bottom: var(--spacing-md);
 }
 
 .current-temp {
   font-size: var(--text-4xl);
   font-weight: 200;
   line-height: 0.9;
-  margin-bottom: var(--spacing-xs);
   letter-spacing: -0.02em;
 }
 
@@ -275,12 +261,7 @@ html, body {
   font-size: var(--text-base);
   font-weight: 400;
   opacity: 0.8;
-}
-
-.weather-icon-section {
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  margin-bottom: var(--spacing-lg);
 }
 
 .weather-icon {
@@ -889,9 +870,6 @@ html, body {
     gap: var(--spacing-md);
   }
   
-  .temperature-section {
-    text-align: center;
-  }
   
   .weather-details-grid {
     grid-template-columns: 1fr;
