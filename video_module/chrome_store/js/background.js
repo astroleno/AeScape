@@ -434,28 +434,28 @@ class BackgroundThemeSystem {
         primary: 'rgba(255, 183, 77, 0.6)',
         secondary: 'rgba(255, 138, 101, 0.4)',
         accent: 'rgba(255, 204, 128, 0.3)',
-        gradient: 'linear-gradient(135deg, rgba(255, 183, 77, 0.15) 0%, rgba(255, 138, 101, 0.1) 100%)',
+        gradient: 'linear-gradient(135deg, rgba(255, 183, 77, 0.18) 0%, rgba(255, 138, 101, 0.12) 100%)',
         text: 'rgba(33, 33, 33, 0.9)'
       },
       'clear-morning': {
         primary: 'rgba(66, 165, 245, 0.5)',
         secondary: 'rgba(102, 187, 106, 0.4)',
         accent: 'rgba(38, 198, 218, 0.3)',
-        gradient: 'linear-gradient(135deg, rgba(66, 165, 245, 0.12) 0%, rgba(102, 187, 106, 0.08) 100%)',
+        gradient: 'linear-gradient(135deg, rgba(66, 165, 245, 0.2) 0%, rgba(102, 187, 106, 0.05) 100%)',
         text: 'rgba(33, 33, 33, 0.9)'
       },
       'clear-noon': {
         primary: 'rgba(255, 167, 38, 0.5)',
         secondary: 'rgba(66, 165, 245, 0.4)',
         accent: 'rgba(102, 187, 106, 0.3)',
-        gradient: 'linear-gradient(135deg, rgba(255, 167, 38, 0.12) 0%, rgba(66, 165, 245, 0.08) 100%)',
+        gradient: 'linear-gradient(135deg, rgba(255, 167, 38, 0.22) 0%, rgba(66, 165, 245, 0.05) 100%)',
         text: 'rgba(33, 33, 33, 0.9)'
       },
       'clear-afternoon': {
         primary: 'rgba(255, 138, 101, 0.5)',
         secondary: 'rgba(255, 171, 64, 0.4)',
         accent: 'rgba(255, 213, 79, 0.3)',
-        gradient: 'linear-gradient(135deg, rgba(255, 138, 101, 0.12) 0%, rgba(255, 171, 64, 0.08) 100%)',
+        gradient: 'linear-gradient(135deg, rgba(255, 138, 101, 0.16) 0%, rgba(255, 171, 64, 0.10) 100%)',
         text: 'rgba(33, 33, 33, 0.9)'
       },
       'clear-sunset': {
@@ -463,14 +463,14 @@ class BackgroundThemeSystem {
         secondary: 'rgba(255, 61, 0, 0.4)',
         accent: 'rgba(255, 179, 0, 0.3)',
         gradient: 'linear-gradient(135deg, rgba(239, 108, 0, 0.15) 0%, rgba(255, 61, 0, 0.1) 100%)',
-        text: 'rgba(255, 255, 255, 0.95)'
+        text: 'rgba(33, 33, 33, 0.9)'
       },
       'clear-evening': {
         primary: 'rgba(103, 58, 183, 0.6)',
         secondary: 'rgba(156, 39, 176, 0.45)',
         accent: 'rgba(233, 30, 99, 0.35)',
         gradient: 'linear-gradient(135deg, rgba(103, 58, 183, 0.15) 0%, rgba(156, 39, 176, 0.1) 100%)',
-        text: 'rgba(255, 255, 255, 0.95)'
+        text: 'rgba(33, 33, 33, 0.9)'
       },
       'clear-night': {
         primary: 'rgb(31, 40, 91)',
@@ -514,14 +514,14 @@ class BackgroundThemeSystem {
         secondary: 'rgba(239, 108, 0, 0.2)',
         accent: 'rgba(255, 61, 0, 0.15)',
         gradient: 'linear-gradient(135deg, rgba(74, 20, 140, 0.15) 0%, rgba(239, 108, 0, 0.08) 100%)',
-        text: 'rgba(255, 255, 255, 0.95)'
+        text: 'rgba(33, 33, 33, 0.9)'
       },
       'thunderstorm-evening': {
         primary: 'rgba(26, 35, 126, 0.4)',
         secondary: 'rgba(38, 50, 56, 0.3)',
         accent: 'rgba(55, 71, 79, 0.25)',
         gradient: 'linear-gradient(135deg, rgba(26, 35, 126, 0.15) 0%, rgba(38, 50, 56, 0.1) 100%)',
-        text: 'rgba(255, 255, 255, 0.95)'
+        text: 'rgba(33, 33, 33, 0.9)'
       },
       'thunderstorm-night': {
         primary: 'rgb(13, 20, 33)',
@@ -529,9 +529,111 @@ class BackgroundThemeSystem {
         accent: 'rgb(38, 50, 56)',
         gradient: 'linear-gradient(135deg, rgb(7, 10, 17) 0%, rgb(13, 18, 63) 100%)',
         text: 'rgba(255, 255, 255, 0.98)'
+      },
+
+      // 多云系列
+      'cloudy-dawn': {
+        primary: 'rgba(144, 164, 174, 0.4)',
+        secondary: 'rgba(176, 190, 197, 0.3)',
+        accent: 'rgba(207, 216, 220, 0.25)',
+        gradient: 'linear-gradient(135deg, rgba(144, 164, 174, 0.15) 0%, rgba(176, 190, 197, 0.08) 100%)',
+        text: 'rgba(33, 33, 33, 0.9)'
+      },
+      'cloudy-morning': {
+        primary: 'rgba(144, 164, 174, 0.4)',
+        secondary: 'rgba(176, 190, 197, 0.3)',
+        accent: 'rgba(207, 216, 220, 0.25)',
+        gradient: 'linear-gradient(135deg, rgba(144, 164, 174, 0.15) 0%, rgba(176, 190, 197, 0.08) 100%)',
+        text: 'rgba(33, 33, 33, 0.9)'
+      },
+      'cloudy-noon': {
+        primary: 'rgba(144, 164, 174, 0.4)',
+        secondary: 'rgba(176, 190, 197, 0.3)',
+        accent: 'rgba(207, 216, 220, 0.25)',
+        gradient: 'linear-gradient(135deg, rgba(144, 164, 174, 0.15) 0%, rgba(176, 190, 197, 0.08) 100%)',
+        text: 'rgba(33, 33, 33, 0.9)'
+      },
+      'cloudy-afternoon': {
+        primary: 'rgba(144, 164, 174, 0.4)',
+        secondary: 'rgba(176, 190, 197, 0.3)',
+        accent: 'rgba(207, 216, 220, 0.25)',
+        gradient: 'linear-gradient(135deg, rgba(144, 164, 174, 0.15) 0%, rgba(176, 190, 197, 0.08) 100%)',
+        text: 'rgba(33, 33, 33, 0.9)'
+      },
+      'cloudy-sunset': {
+        primary: 'rgba(144, 164, 174, 0.4)',
+        secondary: 'rgba(255, 138, 101, 0.2)',
+        accent: 'rgba(255, 171, 64, 0.15)',
+        gradient: 'linear-gradient(135deg, rgba(144, 164, 174, 0.15) 0%, rgba(255, 138, 101, 0.08) 100%)',
+        text: 'rgba(33, 33, 33, 0.9)'
+      },
+      'cloudy-evening': {
+        primary: 'rgba(69, 90, 100, 0.4)',
+        secondary: 'rgba(84, 110, 122, 0.3)',
+        accent: 'rgba(102, 120, 138, 0.25)',
+        gradient: 'linear-gradient(135deg, rgba(69, 90, 100, 0.15) 0%, rgba(84, 110, 122, 0.1) 100%)',
+        text: 'rgba(33, 33, 33, 0.9)'
+      },
+      'cloudy-night': {
+        primary: 'rgb(55, 71, 79)',
+        secondary: 'rgb(69, 90, 100)',
+        accent: 'rgb(84, 110, 122)',
+        gradient: 'linear-gradient(135deg, rgb(45, 58, 65) 0%, rgb(55, 71, 79) 100%)',
+        text: 'rgba(255, 255, 255, 0.95)'
+      },
+
+      // 雨天系列
+      'rain-dawn': {
+        primary: 'rgba(55, 71, 79, 0.4)',
+        secondary: 'rgba(69, 90, 100, 0.3)',
+        accent: 'rgba(84, 110, 122, 0.25)',
+        gradient: 'linear-gradient(135deg, rgba(55, 71, 79, 0.15) 0%, rgba(69, 90, 100, 0.1) 100%)',
+        text: 'rgba(33, 33, 33, 0.9)'
+      },
+      'rain-morning': {
+        primary: 'rgba(55, 71, 79, 0.4)',
+        secondary: 'rgba(69, 90, 100, 0.3)',
+        accent: 'rgba(84, 110, 122, 0.25)',
+        gradient: 'linear-gradient(135deg, rgba(55, 71, 79, 0.15) 0%, rgba(69, 90, 100, 0.1) 100%)',
+        text: 'rgba(33, 33, 33, 0.9)'
+      },
+      'rain-noon': {
+        primary: 'rgba(55, 71, 79, 0.4)',
+        secondary: 'rgba(69, 90, 100, 0.3)',
+        accent: 'rgba(84, 110, 122, 0.25)',
+        gradient: 'linear-gradient(135deg, rgba(55, 71, 79, 0.15) 0%, rgba(69, 90, 100, 0.1) 100%)',
+        text: 'rgba(33, 33, 33, 0.9)'
+      },
+      'rain-afternoon': {
+        primary: 'rgba(55, 71, 79, 0.4)',
+        secondary: 'rgba(69, 90, 100, 0.3)',
+        accent: 'rgba(84, 110, 122, 0.25)',
+        gradient: 'linear-gradient(135deg, rgba(55, 71, 79, 0.15) 0%, rgba(69, 90, 100, 0.1) 100%)',
+        text: 'rgba(33, 33, 33, 0.9)'
+      },
+      'rain-sunset': {
+        primary: 'rgba(55, 71, 79, 0.4)',
+        secondary: 'rgba(69, 90, 100, 0.3)',
+        accent: 'rgba(84, 110, 122, 0.25)',
+        gradient: 'linear-gradient(135deg, rgba(55, 71, 79, 0.15) 0%, rgba(69, 90, 100, 0.1) 100%)',
+        text: 'rgba(33, 33, 33, 0.9)'
+      },
+      'rain-evening': {
+        primary: 'rgba(38, 50, 56, 0.4)',
+        secondary: 'rgba(55, 71, 79, 0.3)',
+        accent: 'rgba(69, 90, 100, 0.25)',
+        gradient: 'linear-gradient(135deg, rgba(38, 50, 56, 0.15) 0%, rgba(55, 71, 79, 0.1) 100%)',
+        text: 'rgba(33, 33, 33, 0.9)'
+      },
+      'rain-night': {
+        primary: 'rgb(38, 50, 56)',
+        secondary: 'rgb(55, 71, 79)',
+        accent: 'rgb(69, 90, 100)',
+        gradient: 'linear-gradient(135deg, rgb(32, 41, 46) 0%, rgb(38, 50, 56) 100%)',
+        text: 'rgba(255, 255, 255, 0.95)'
       }
 
-      // 注：这里只添加了部分主题，完整版本在theme-system.js中
+      // 注：已添加主要天气类型的主题
     };
   }
 
@@ -607,8 +709,36 @@ class BackgroundThemeSystem {
       hour,
       isNight,
       timeSlot,
-      theme,
-      sunTimes
+      sunTimes,
+      // 统一所有组件使用相同的主题数据结构
+      floating: {
+        primary: theme.primary,
+        secondary: theme.secondary,
+        accent: theme.accent,
+        gradient: theme.gradient,
+        text: theme.text
+      },
+      popup: {
+        primary: theme.primary,
+        secondary: theme.secondary,
+        accent: theme.accent,
+        gradient: theme.gradient,
+        text: theme.text
+      },
+      newtab: {
+        primary: theme.primary,
+        secondary: theme.secondary,
+        accent: theme.accent,
+        gradient: theme.gradient,
+        text: theme.text
+      },
+      panel: {
+        primary: theme.primary,
+        secondary: theme.secondary,
+        accent: theme.accent,
+        gradient: theme.gradient,
+        text: theme.text
+      }
     };
   }
 }

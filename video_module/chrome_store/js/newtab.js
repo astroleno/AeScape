@@ -24,9 +24,6 @@ class AeScapeNewTab {
       await this.checkApiStatus();
       await this.loadWeatherData();
       
-      // 预热可视化模块（不阻塞）
-      window.AeScapeVisualEffects?.init().catch(() => {});
-      
       this.startTimers();
       
       console.log('AeScape NewTab initialized successfully');
@@ -309,38 +306,33 @@ class AeScapeNewTab {
   }
 
   async updateWeatherTheme(weather) {
-    // 使用统一主题系统，结合日出日落时间
-    if (window.unifiedTheme) {
-      const weatherCode = weather.weather?.code || 'clear';
-      const hour = new Date().getHours();
-      let isNight = weather.env?.isNight || false;
+    // 统一从背景服务获取主题数据
+    try {
+      const themeResponse = await chrome.runtime.sendMessage({
+        type: 'theme.getCurrent'
+      });
       
-      // 获取日出日落时间
-      let sunTimes = null;
-      if (this.currentLocation?.lat && this.currentLocation?.lng) {
-        sunTimes = await window.unifiedTheme.getSunTimes(
-          this.currentLocation.lat, 
-          this.currentLocation.lng
-        );
-        
-        // 使用智能判断
-        if (sunTimes) {
-          isNight = window.unifiedTheme.isNightTime(hour, sunTimes);
-        }
+      if (themeResponse?.success && themeResponse?.data) {
+        this.applyThemeData(themeResponse.data);
       }
-      
-      window.unifiedTheme.applyToNewTab(weatherCode, hour, isNight, sunTimes);
-
-      // 应用可视化效果（多云=渐变，其它=粒子）
-      try {
-        if (window.AeScapeVisualEffects) {
-          await window.AeScapeVisualEffects.init();
-          window.AeScapeVisualEffects.apply(weatherCode);
-        }
-      } catch (e) {
-        console.warn('visual effects failed:', e);
-      }
+    } catch (error) {
+      console.warn('Failed to get theme from background:', error);
     }
+  }
+
+  // 应用从背景服务获取的主题数据
+  applyThemeData(themeData) {
+    if (!themeData?.newtab) return;
+    
+    const theme = themeData.newtab;
+    const root = document.documentElement;
+    
+    // 应用CSS自定义属性
+    root.style.setProperty('--theme-primary', theme.primary || theme.gradient);
+    root.style.setProperty('--theme-secondary', theme.secondary || theme.gradient);
+    root.style.setProperty('--theme-accent', theme.accent || theme.gradient);
+    root.style.setProperty('--theme-gradient', theme.gradient);
+    root.style.setProperty('--theme-text', theme.text);
   }
 
   showErrorState() {

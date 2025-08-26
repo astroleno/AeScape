@@ -1,0 +1,59 @@
+{
+  "weatherChangeThreshold": 300000,
+  "durationThreshold": 1800000,
+  "maxDailyPlays": 10,
+  "animationDuration": 1500,
+  "enableWeatherChangeTrigger": true,
+  "enableDurationTrigger": true,
+  "enableUserPreferences": true,
+  "enablePerformanceMode": true,
+  "performanceThresholds": {
+    "lowEndDevice": {
+      "maxEffects": 1,
+      "reduceQuality": true,
+      "disableEnhancements": true
+    },
+    "mediumEndDevice": {
+      "maxEffects": 2,
+      "reduceQuality": false,
+      "disableEnhancements": false
+    },
+    "highEndDevice": {
+      "maxEffects": 3,
+      "reduceQuality": false,
+      "disableEnhancements": false
+    }
+  },
+  "weatherTypes": {
+    "clear": {
+      "enabled": true,
+      "priority": 1,
+      "specialEffects": ["lighten"]
+    },
+    "cloudy": {
+      "enabled": true,
+      "priority": 2,
+      "specialEffects": ["lighten"]
+    },
+    "rain": {
+      "enabled": true,
+      "priority": 3,
+      "specialEffects": ["screen"]
+    },
+    "snow": {
+      "enabled": true,
+      "priority": 4,
+      "specialEffects": ["screen"]
+    },
+    "fog": {
+      "enabled": true,
+      "priority": 5,
+      "specialEffects": ["lighten"]
+    },
+    "thunderstorm": {
+      "enabled": true,
+      "priority": 6,
+      "specialEffects": ["overlay"]
+    }
+  }
+}

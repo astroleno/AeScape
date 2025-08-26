@@ -112,28 +112,28 @@ class UnifiedThemeSystem {
       primary: 'rgba(255, 183, 77, 0.6)',    // 柔和金色
       secondary: 'rgba(255, 138, 101, 0.4)',  // 淡橙色
       accent: 'rgba(255, 204, 128, 0.3)',     // 浅黄色
-      gradient: 'linear-gradient(135deg, rgba(255, 183, 77, 0.15) 0%, rgba(255, 138, 101, 0.1) 100%)',
+      gradient: 'linear-gradient(135deg, rgba(255, 183, 77, 0.25) 0%, rgba(255, 138, 101, 0.05) 100%)',
       text: 'rgba(33, 33, 33, 0.9)'
     },
     'clear-morning': {
       primary: 'rgba(66, 165, 245, 0.5)',
       secondary: 'rgba(102, 187, 106, 0.4)',
       accent: 'rgba(38, 198, 218, 0.3)',
-      gradient: 'linear-gradient(135deg, rgba(66, 165, 245, 0.12) 0%, rgba(102, 187, 106, 0.08) 100%)',
+      gradient: 'linear-gradient(135deg, rgba(66, 165, 245, 0.2) 0%, rgba(102, 187, 106, 0.05) 100%)',
       text: 'rgba(33, 33, 33, 0.9)'
     },
     'clear-noon': {
       primary: 'rgba(255, 167, 38, 0.5)',
       secondary: 'rgba(66, 165, 245, 0.4)',
       accent: 'rgba(102, 187, 106, 0.3)',
-      gradient: 'linear-gradient(135deg, rgba(255, 167, 38, 0.12) 0%, rgba(66, 165, 245, 0.08) 100%)',
+      gradient: 'linear-gradient(135deg, rgba(255, 167, 38, 0.22) 0%, rgba(66, 165, 245, 0.05) 100%)',
       text: 'rgba(33, 33, 33, 0.9)'
     },
     'clear-afternoon': {
       primary: 'rgba(255, 138, 101, 0.5)',
       secondary: 'rgba(255, 171, 64, 0.4)',
       accent: 'rgba(255, 213, 79, 0.3)',
-      gradient: 'linear-gradient(135deg, rgba(255, 138, 101, 0.12) 0%, rgba(255, 171, 64, 0.08) 100%)',
+      gradient: 'linear-gradient(135deg, rgba(255, 138, 101, 0.2) 0%, rgba(255, 171, 64, 0.05) 100%)',
       text: 'rgba(33, 33, 33, 0.9)'
     },
     'clear-sunset': {
@@ -141,14 +141,14 @@ class UnifiedThemeSystem {
       secondary: 'rgba(255, 61, 0, 0.4)',
       accent: 'rgba(255, 179, 0, 0.3)',
       gradient: 'linear-gradient(135deg, rgba(239, 108, 0, 0.15) 0%, rgba(255, 61, 0, 0.1) 100%)',
-      text: 'rgba(255, 255, 255, 0.95)'
+      text: 'rgba(33, 33, 33, 0.9)'
     },
     'clear-evening': {
       primary: 'rgba(103, 58, 183, 0.6)',
       secondary: 'rgba(156, 39, 176, 0.45)',
       accent: 'rgba(233, 30, 99, 0.35)',
       gradient: 'linear-gradient(135deg, rgba(103, 58, 183, 0.18) 0%, rgba(156, 39, 176, 0.14) 100%)',
-      text: 'rgba(255, 255, 255, 0.95)'
+      text: 'rgba(33, 33, 33, 0.9)'
     },
     'clear-night': {
       primary: 'rgb(63, 81, 181)',
@@ -192,14 +192,14 @@ class UnifiedThemeSystem {
       secondary: 'rgba(255, 138, 101, 0.2)',
       accent: 'rgba(255, 167, 38, 0.15)',
       gradient: 'linear-gradient(135deg, rgba(84, 110, 122, 0.1) 0%, rgba(255, 138, 101, 0.06) 100%)',
-      text: 'rgba(255, 255, 255, 0.9)'
+      text: 'rgba(33, 33, 33, 0.9)'
     },
     'cloudy-evening': {
       primary: 'rgba(55, 71, 79, 0.6)',
       secondary: 'rgba(69, 90, 100, 0.45)',
       accent: 'rgba(84, 110, 122, 0.35)',
       gradient: 'linear-gradient(135deg, rgba(55, 71, 79, 0.16) 0%, rgba(69, 90, 100, 0.12) 100%)',
-      text: 'rgba(255, 255, 255, 0.95)'
+      text: 'rgba(33, 33, 33, 0.9)'
     },
     'cloudy-night': {
       primary: 'rgb(38, 50, 56)',
@@ -243,14 +243,14 @@ class UnifiedThemeSystem {
       secondary: 'rgba(103, 58, 183, 0.3)',
       accent: 'rgba(156, 39, 176, 0.25)',
       gradient: 'linear-gradient(135deg, rgba(40, 53, 147, 0.12) 0%, rgba(103, 58, 183, 0.08) 100%)',
-      text: 'rgba(255, 255, 255, 0.95)'
+      text: 'rgba(33, 33, 33, 0.9)'
     },
     'rain-evening': {
       primary: 'rgba(26, 35, 126, 0.6)',
       secondary: 'rgba(40, 53, 147, 0.45)',
       accent: 'rgba(48, 63, 159, 0.35)',
       gradient: 'linear-gradient(135deg, rgba(26, 35, 126, 0.18) 0%, rgba(40, 53, 147, 0.14) 100%)',
-      text: 'rgba(255, 255, 255, 0.95)'
+      text: 'rgba(33, 33, 33, 0.9)'
     },
     'rain-night': {
       primary: 'rgb(13, 20, 33)',
@@ -294,14 +294,14 @@ class UnifiedThemeSystem {
       secondary: 'rgba(255, 138, 101, 0.15)',
       accent: 'rgba(255, 183, 77, 0.1)',
       gradient: 'linear-gradient(135deg, rgba(41, 182, 246, 0.08) 0%, rgba(255, 138, 101, 0.04) 100%)',
-      text: 'rgba(255, 255, 255, 0.95)'
+      text: 'rgba(33, 33, 33, 0.9)'
     },
     'snow-evening': {
       primary: 'rgba(3, 169, 244, 0.3)',
       secondary: 'rgba(2, 119, 189, 0.25)',
       accent: 'rgba(2, 136, 209, 0.2)',
       gradient: 'linear-gradient(135deg, rgba(3, 169, 244, 0.08) 0%, rgba(2, 119, 189, 0.06) 100%)',
-      text: 'rgba(255, 255, 255, 0.95)'
+      text: 'rgba(33, 33, 33, 0.9)'
     },
     'snow-night': {
       primary: 'rgb(2, 119, 189)',
@@ -345,14 +345,14 @@ class UnifiedThemeSystem {
       secondary: 'rgba(255, 138, 101, 0.1)',
       accent: 'rgba(255, 183, 77, 0.08)',
       gradient: 'linear-gradient(135deg, rgba(158, 158, 158, 0.06) 0%, rgba(255, 138, 101, 0.03) 100%)',
-      text: 'rgba(255, 255, 255, 0.9)'
+      text: 'rgba(33, 33, 33, 0.9)'
     },
     'fog-evening': {
       primary: 'rgba(117, 117, 117, 0.2)',
       secondary: 'rgba(97, 97, 97, 0.15)',
       accent: 'rgba(66, 66, 66, 0.1)',
       gradient: 'linear-gradient(135deg, rgba(117, 117, 117, 0.06) 0%, rgba(97, 97, 97, 0.04) 100%)',
-      text: 'rgba(255, 255, 255, 0.9)'
+      text: 'rgba(33, 33, 33, 0.9)'
     },
     'fog-night': {
       primary: 'rgb(66, 66, 66)',
@@ -396,14 +396,14 @@ class UnifiedThemeSystem {
       secondary: 'rgba(239, 108, 0, 0.2)',
       accent: 'rgba(255, 61, 0, 0.15)',
       gradient: 'linear-gradient(135deg, rgba(74, 20, 140, 0.15) 0%, rgba(239, 108, 0, 0.08) 100%)',
-      text: 'rgba(255, 255, 255, 0.95)'
+      text: 'rgba(33, 33, 33, 0.9)'
     },
     'thunderstorm-evening': {
       primary: 'rgba(26, 35, 126, 0.4)',
       secondary: 'rgba(38, 50, 56, 0.3)',
       accent: 'rgba(55, 71, 79, 0.25)',
       gradient: 'linear-gradient(135deg, rgba(26, 35, 126, 0.15) 0%, rgba(38, 50, 56, 0.1) 100%)',
-      text: 'rgba(255, 255, 255, 0.95)'
+      text: 'rgba(33, 33, 33, 0.9)'
     },
     'thunderstorm-night': {
       primary: 'rgb(13, 20, 33)',
@@ -445,11 +445,37 @@ class UnifiedThemeSystem {
   applyToPopup(weatherCode, hour, isNight, sunTimes = null) {
     const theme = this.getTheme(weatherCode, hour, isNight, sunTimes);
     const body = document.body;
+    const root = document.documentElement;
 
-    // 应用主题样式
-    body.style.background = theme.gradient;
-    body.style.color = theme.text;
-    body.style.transition = `all ${this.transitionDuration}ms ease`;
+    console.log('[AeScape] 应用popup主题:', theme);
+
+    // 更新CSS变量以确保强制覆盖
+    root.style.setProperty('--theme-gradient', theme.gradient);
+    root.style.setProperty('--theme-text', theme.text);
+    
+    // 直接应用到body样式（强制覆盖）
+    body.style.setProperty('background', theme.gradient, 'important');
+    body.style.setProperty('color', theme.text, 'important');
+    body.style.setProperty('transition', `all ${this.transitionDuration}ms ease`, 'important');
+
+    // 更新伪元素背景
+    const beforeStyles = `
+      body::before {
+        background: ${theme.gradient} !important;
+      }
+    `;
+    
+    // 移除旧的style标签
+    const oldStyle = document.getElementById('popup-theme-override');
+    if (oldStyle) {
+      oldStyle.remove();
+    }
+    
+    // 添加新的style标签
+    const styleElement = document.createElement('style');
+    styleElement.id = 'popup-theme-override';
+    styleElement.textContent = beforeStyles;
+    document.head.appendChild(styleElement);
 
     // 移除所有天气类
     body.className = body.className.replace(/weather-\w+/g, '');
@@ -498,3 +524,92 @@ class UnifiedThemeSystem {
 
 // 导出实例
 window.unifiedTheme = new UnifiedThemeSystem();
+
+// 全局主题同步管理器
+window.GlobalThemeManager = {
+  currentThemeData: null,
+  listeners: [],
+  
+  // 设置全局主题数据
+  setGlobalTheme(weatherCode, hour, isNight, sunTimes = null) {
+    const theme = window.unifiedTheme.getTheme(weatherCode, hour, isNight, sunTimes);
+    this.currentThemeData = {
+      weatherCode,
+      hour,
+      isNight,
+      sunTimes,
+      theme,
+      // 统一的主题数据格式
+      floating: { gradient: theme.gradient, text: theme.text },
+      popup: { gradient: theme.gradient, text: theme.text },
+      newtab: theme,
+      panel: { gradient: theme.gradient, text: theme.text, borderColor: this.getBorderColor(theme.text) }
+    };
+    
+    console.log('[GlobalThemeManager] 全局主题已更新:', this.currentThemeData);
+    
+    // 通知所有监听器
+    this.notifyListeners();
+  },
+  
+  // 获取边框颜色
+  getBorderColor(textColor) {
+    if (textColor.includes('33, 33, 33')) {
+      return 'rgba(0, 0, 0, 0.15)';
+    }
+    return 'rgba(255, 255, 255, 0.2)';
+  },
+  
+  // 获取当前主题数据
+  getCurrentTheme() {
+    return this.currentThemeData;
+  },
+  
+  // 添加监听器
+  addListener(callback) {
+    this.listeners.push(callback);
+  },
+  
+  // 通知所有监听器
+  notifyListeners() {
+    this.listeners.forEach(callback => {
+      try {
+        callback(this.currentThemeData);
+      } catch (error) {
+        console.warn('[GlobalThemeManager] 监听器回调失败:', error);
+      }
+    });
+  },
+  
+  // 强制应用主题到所有组件
+  applyToAllComponents() {
+    if (!this.currentThemeData) {
+      console.warn('[GlobalThemeManager] 没有主题数据可应用');
+      return;
+    }
+    
+    const { theme, weatherCode, hour, isNight, sunTimes } = this.currentThemeData;
+    
+    // 应用到popup
+    if (document.body && document.body.classList.contains('popup-body')) {
+      window.unifiedTheme.applyToPopup(weatherCode, hour, isNight, sunTimes);
+    }
+    
+    // 应用到新标签页
+    if (document.querySelector('.background-layer')) {
+      window.unifiedTheme.applyToNewTab(weatherCode, hour, isNight);
+    }
+    
+    // 通知悬浮球更新（如果存在）
+    if (window.aescape && window.aescape.applyGlobalTheme) {
+      window.aescape.applyGlobalTheme(this.currentThemeData);
+    }
+  }
+};
+
+// 初始化默认主题
+document.addEventListener('DOMContentLoaded', function() {
+  const hour = new Date().getHours();
+  const isNight = hour < 6 || hour > 19;
+  window.GlobalThemeManager.setGlobalTheme('clear', hour, isNight);
+});

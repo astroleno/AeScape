@@ -9,10 +9,10 @@
   right: 20px !important;
   width: 60px !important;
   height: 60px !important;
-  background: rgba(255, 255, 255, 0.15) !important;
+  /* background将由JavaScript动态设置主题色 */
   backdrop-filter: blur(20px) !important;
   -webkit-backdrop-filter: blur(20px) !important;
-  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
   border-radius: 50% !important;
   display: flex !important;
   flex-direction: column !important;
@@ -20,14 +20,17 @@
   justify-content: center !important;
   cursor: pointer !important;
   z-index: 10000 !important;
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif !important;
-  transition: all 0.3s ease !important;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1) !important;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "SF Pro Display", "PingFang SC", sans-serif !important;
+  transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94) !important;
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.12),
+    0 2px 8px rgba(0, 0, 0, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15) !important;
   user-select: none !important;
   -webkit-user-select: none !important;
-  color: white !important;
+  /* color将由JavaScript动态设置主题色 */
   font-size: 12px !important;
-  font-weight: 600 !important;
+  font-weight: 500 !important;
   box-sizing: border-box !important;
   margin: 0 !important;
   padding: 0 !important;
@@ -67,7 +70,7 @@
   border: none !important;
   background: transparent !important;
   display: block !important;
-  color: white !important;
+  /* color继承自父元素，由JavaScript设置主题色 */
 }
 
 #aescape-floating-ball .location-name {
@@ -79,7 +82,7 @@
   text-overflow: ellipsis !important;
   white-space: nowrap !important;
   text-align: center !important;
-  color: white !important;
+  /* color继承自父元素，由JavaScript设置主题色 */
   background: transparent !important;
   border: none !important;
   padding: 0 !important;
@@ -104,12 +107,17 @@
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
   margin: 0 !important;
   border: none !important;
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif !important;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "SF Pro Display", "PingFang SC", sans-serif !important;
 }
 
 #aescape-floating-ball:hover {
-  transform: scale(1.1) !important;
-  background: rgba(255, 255, 255, 0.25) !important;
+  transform: translateY(-2px) scale(1.05) !important;
+  box-shadow: 
+    0 12px 40px rgba(0, 0, 0, 0.16),
+    0 4px 12px rgba(0, 0, 0, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
+  backdrop-filter: blur(24px) !important;
+  -webkit-backdrop-filter: blur(24px) !important;
 }
 
 #aescape-detail-panel {
@@ -117,16 +125,16 @@
   bottom: 150px !important;
   right: 20px !important;
   width: 280px !important;
-  background: rgba(255, 255, 255, 0.95) !important;
+  /* background将由JavaScript动态设置主题色 */
   backdrop-filter: blur(20px) !important;
   -webkit-backdrop-filter: blur(20px) !important;
   border: 1px solid rgba(255, 255, 255, 0.3) !important;
   border-radius: 16px !important;
-  padding: 20px !important;
+  padding: 16px !important;
   z-index: 10001 !important;
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif !important;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "SF Pro Display", "PingFang SC", sans-serif !important;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1) !important;
-  color: #333 !important;
+  /* color将由JavaScript动态设置主题色 */
   box-sizing: border-box !important;
   margin: 0 !important;
   font-size: 14px !important;

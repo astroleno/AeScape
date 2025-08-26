@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>天景 AeScape - 视频模块测试</title>
+  <link rel="stylesheet" href="video-intro.css">
+  <style>
+    /* 测试页面样式 */
+    body {
+      margin: 0;
+      padding: 20px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      color: white;
+    }
+    
+    .test-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      background: rgba(255,255,255,0.1);
+      border-radius: 12px;
+      padding: 30px;
+      backdrop-filter: blur(10px);
+    }
+    
+    .test-header {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    
+    .test-header h1 {
+      margin: 0 0 10px 0;
+      font-size: 2.5em;
+      font-weight: 300;
+    }
+    
+    .test-header p {
+      margin: 0;
+      opacity: 0.8;
+      font-size: 1.1em;
+    }
+    
+    .test-section {
+      margin-bottom: 30px;
+      padding: 20px;
+      background: rgba(255,255,255,0.05);
+      border-radius: 8px;
+    }
+    
+    .test-section h2 {
+      margin: 0 0 15px 0;
+      font-size: 1.5em;
+      font-weight: 400;
+    }
+    
+    .weather-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 15px;
+      margin-bottom: 20px;
+    }
+    
+    .weather-button {
+      padding: 12px 20px;
+      border: none;
+      border-radius: 6px;
+      background: rgba(255,255,255,0.1);
+      color: white;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      font-size: 14px;
+      font-weight: 500;
+    }
+    
+    .weather-button:hover {
+      background: rgba(255,255,255,0.2);
+      transform: translateY(-2px);
+    }
+    
+    .weather-button.active {
+      background: rgba(255,255,255,0.3);
+      box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    }
+    
+    .control-panel {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 15px;
+      margin-bottom: 20px;
+    }
+    
+    .control-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    
+    .control-group label {
+      font-size: 12px;
+      opacity: 0.8;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    .control-group select,
+    .control-group input {
+      padding: 8px 12px;
+      border: none;
+      border-radius: 4px;
+      background: rgba(255,255,255,0.1);
+      color: white;
+      font-size: 14px;
+    }
+    
+    .control-group select option {
+      background: #333;
+      color: white;
+    }
+    
+    .toggle-group {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+    
+    .toggle-switch {
+      position: relative;
+      width: 50px;
+      height: 24px;
+      background: rgba(255,255,255,0.2);
+      border-radius: 12px;
+      cursor: pointer;
+      transition: background 0.3s ease;
+    }
+    
+    .toggle-switch.active {
+      background: rgba(255,255,255,0.4);
+    }
+    
+    .toggle-switch::after {
+      content: '';
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 20px;
+      height: 20px;
+      background: white;
+      border-radius: 50%;
+      transition: transform 0.3s ease;
+    }
+    
+    .toggle-switch.active::after {
+      transform: translateX(26px);
+    }
+    
+    .status-panel {
+      background: rgba(0,0,0,0.2);
+      border-radius: 6px;
+      padding: 15px;
+      margin-top: 20px;
+    }
+    
+    .status-item {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 8px;
+      font-size: 14px;
+    }
+    
+    .status-item:last-child {
+      margin-bottom: 0;
+    }
+    
+    .status-label {
+      opacity: 0.7;
+    }
+    
+    .status-value {
+      font-weight: 500;
+    }
+    
+    .log-panel {
+      background: rgba(0,0,0,0.3);
+      border-radius: 6px;
+      padding: 15px;
+      margin-top: 20px;
+      max-height: 200px;
+      overflow-y: auto;
+      font-family: 'Monaco', 'Menlo', monospace;
+      font-size: 12px;
+      line-height: 1.4;
+    }
+    
+    .log-entry {
+      margin-bottom: 5px;
+      padding: 3px 0;
+    }
+    
+    .log-entry.info {
+      color: #4fc3f7;
+    }
+    
+    .log-entry.warn {
+      color: #ffb74d;
+    }
+    
+    .log-entry.error {
+      color: #f44336;
+    }
+    
+    .log-entry.success {
+      color: #4caf50;
+    }
+    
+    .performance-panel {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 15px;
+      margin-top: 20px;
+    }
+    
+    .performance-card {
+      background: rgba(255,255,255,0.05);
+      border-radius: 6px;
+      padding: 15px;
+      text-align: center;
+    }
+    
+    .performance-value {
+      font-size: 1.5em;
+      font-weight: 600;
+      margin-bottom: 5px;
+    }
+    
+    .performance-label {
+      font-size: 12px;
+      opacity: 0.7;
+      text-transform: uppercase;
+    }
+    
+    .video-info {
+      background: rgba(255,255,255,0.05);
+      border-radius: 6px;
+      padding: 15px;
+      margin-top: 20px;
+    }
+    
+    .video-info h3 {
+      margin: 0 0 10px 0;
+      font-size: 1.2em;
+      font-weight: 400;
+    }
+    
+    .video-details {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 10px;
+      font-size: 14px;
+    }
+    
+    .video-detail {
+      display: flex;
+      justify-content: space-between;
+    }
+    
+    .video-detail .label {
+      opacity: 0.7;
+    }
+    
+    .video-detail .value {
+      font-weight: 500;
+    }
+  </style>
+</head>
+<body>
+  <!-- 视频容器 -->
+  <div class="intro-video-container" id="intro-video-container"></div>
+  
+  <!-- 测试界面 -->
+  <div class="test-container">
+    <div class="test-header">
+      <h1>天景 AeScape</h1>
+      <p>视频模块测试页面 - 支持所有天气类型的视频效果</p>
+    </div>
+    
+    <!-- 天气选择 -->
+    <div class="test-section">
+      <h2>天气类型测试</h2>
+      <div class="weather-grid" id="weather-grid">
+        <!-- 天气按钮将由JS动态生成 -->
+      </div>
+    </div>
+    
+    <!-- 控制面板 -->
+    <div class="test-section">
+      <h2>播放控制</h2>
+      <div class="control-panel">
+        <div class="control-group">
+          <label>强度级别</label>
+          <select id="intensity-select">
+            <option value="light">轻微</option>
+            <option value="medium" selected>中等</option>
+            <option value="heavy">强烈</option>
+          </select>
+        </div>
+        
+        <div class="control-group">
+          <label>特殊效果</label>
+          <select id="effect-select">
+            <option value="none">无</option>
+            <option value="glass">玻璃效果</option>
+            <option value="bottomview">底部视角</option>
+          </select>
+        </div>
+        
+        <div class="control-group">
+          <label>播放时长 (毫秒)</label>
+          <input type="number" id="duration-input" value="1500" min="500" max="5000" step="100">
+        </div>
+      </div>
+      
+      <div class="control-panel">
+        <div class="control-group">
+          <label>双层视频</label>
+          <div class="toggle-group">
+            <div class="toggle-switch active" id="double-layer-toggle"></div>
+            <span>启用</span>
+          </div>
+        </div>
+        
+        <div class="control-group">
+          <label>增强效果</label>
+          <div class="toggle-group">
+            <div class="toggle-switch active" id="enhance-effects-toggle"></div>
+            <span>启用</span>
+          </div>
+        </div>
+        
+        <div class="control-group">
+          <label>预加载</label>
+          <div class="toggle-group">
+            <div class="toggle-switch" id="preload-toggle"></div>
+            <span>启用</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- 状态面板 -->
+    <div class="test-section">
+      <h2>系统状态</h2>
+      <div class="status-panel" id="status-panel">
+        <!-- 状态信息将由JS动态生成 -->
+      </div>
+    </div>
+    
+    <!-- 性能监控 -->
+    <div class="test-section">
+      <h2>性能监控</h2>
+      <div class="performance-panel" id="performance-panel">
+        <!-- 性能数据将由JS动态生成 -->
+      </div>
+    </div>
+    
+    <!-- 视频信息 -->
+    <div class="test-section">
+      <h2>当前视频信息</h2>
+      <div class="video-info" id="video-info">
+        <!-- 视频信息将由JS动态生成 -->
+      </div>
+    </div>
+    
+    <!-- 日志面板 -->
+    <div class="test-section">
+      <h2>系统日志</h2>
+      <div class="log-panel" id="log-panel">
+        <!-- 日志信息将由JS动态生成 -->
+      </div>
+    </div>
+  </div>
+
+  <!-- 引入模块 -->
+  <script src="weather-video-mapper.js"></script>
+  <script src="VideoIntroAnimation.js"></script>
+  <script src="VideoWeatherManager.js"></script>
+  
+  <script>
+    // 测试应用主逻辑
+    class VideoTestApp {
+      constructor() {
+        this.weatherManager = null;
+        this.currentWeather = null;
+        this.logs = [];
+        this.startTime = Date.now();
+        
+        this.init();
+      }
+      
+      init() {
+        try {
+          // 初始化天气管理器
+          this.weatherManager = new VideoWeatherManager({
+            duration: 1500,
+            enhanceEffects: true,
+            autoPlay: true,
+            fallbackToStatic: true,
+            preloadVideos: false,
+            onStart: () => this.log('视频开始播放', 'success'),
+            onEnd: () => this.log('视频播放结束', 'info'),
+            onError: (error) => this.log('视频播放错误: ' + error.message, 'error'),
+            onWeatherChange: (weather, videoInfo) => {
+              this.currentWeather = weather;
+              this.updateVideoInfo(videoInfo);
+              this.log(`切换到 ${weather} 天气`, 'info');
+            },
+            onVideoLoad: (videoInfo) => {
+              this.log(`视频加载完成: ${videoInfo.videoPath}`, 'success');
+            }
+          });
+          
+          // 初始化管理器
+          this.weatherManager.init();
+          
+          // 初始化界面
+          this.initUI();
+          
+          // 开始状态更新
+          this.startStatusUpdate();
+          
+          this.log('测试应用初始化完成', 'success');
+          
+        } catch (error) {
+          this.log('初始化失败: ' + error.message, 'error');
+        }
+      }
+      
+      initUI() {
+        // 生成天气按钮
+        this.generateWeatherButtons();
+        
+        // 绑定事件
+        this.bindEvents();
+        
+        // 初始化状态面板
+        this.updateStatusPanel();
+      }
+      
+      generateWeatherButtons() {
+        const weatherGrid = document.getElementById('weather-grid');
+        const weatherTypes = this.weatherManager.getSupportedWeatherTypes();
+        
+        weatherGrid.innerHTML = '';
+        
+        weatherTypes.forEach(weather => {
+          const button = document.createElement('button');
+          button.className = 'weather-button';
+          button.textContent = this.getWeatherDisplayName(weather);
+          button.dataset.weather = weather;
+          
+          button.addEventListener('click', () => {
+            this.playWeather(weather);
+            this.updateActiveButton(button);
+          });
+          
+          weatherGrid.appendChild(button);
+        });
+      }
+      
+      getWeatherDisplayName(weather) {
+        const names = {
+          clear: '晴天',
+          cloudy: '多云',
+          rain: '雨天',
+          snow: '雪天',
+          fog: '雾天',
+          thunderstorm: '雷暴'
+        };
+        return names[weather] || weather;
+      }
+      
+      bindEvents() {
+        // 强度选择
+        document.getElementById('intensity-select').addEventListener('change', (e) => {
+          this.log(`强度级别: ${e.target.value}`, 'info');
+        });
+        
+        // 特殊效果选择
+        document.getElementById('effect-select').addEventListener('change', (e) => {
+          this.log(`特殊效果: ${e.target.value}`, 'info');
+        });
+        
+        // 播放时长
+        document.getElementById('duration-input').addEventListener('change', (e) => {
+          const duration = parseInt(e.target.value);
+          this.weatherManager.setConfig({ duration });
+          this.log(`播放时长: ${duration}ms`, 'info');
+        });
+        
+        // 双层视频切换
+        document.getElementById('double-layer-toggle').addEventListener('click', (e) => {
+          const toggle = e.target;
+          const enabled = !toggle.classList.contains('active');
+          toggle.classList.toggle('active', enabled);
+          
+          if (this.weatherManager.animation) {
+            this.weatherManager.animation.toggleDoubleLayer(enabled);
+          }
+          this.log(`双层视频: ${enabled ? '启用' : '禁用'}`, 'info');
+        });
+        
+        // 增强效果切换
+        document.getElementById('enhance-effects-toggle').addEventListener('click', (e) => {
+          const toggle = e.target;
+          const enabled = !toggle.classList.contains('active');
+          toggle.classList.toggle('active', enabled);
+          
+          this.weatherManager.setConfig({ enhanceEffects: enabled });
+          if (this.weatherManager.animation) {
+            this.weatherManager.animation.toggleEnhanceEffects(enabled);
+          }
+          this.log(`增强效果: ${enabled ? '启用' : '禁用'}`, 'info');
+        });
+        
+        // 预加载切换
+        document.getElementById('preload-toggle').addEventListener('click', (e) => {
+          const toggle = e.target;
+          const enabled = !toggle.classList.contains('active');
+          toggle.classList.toggle('active', enabled);
+          
+          this.weatherManager.setConfig({ preloadVideos: enabled });
+          this.log(`预加载: ${enabled ? '启用' : '禁用'}`, 'info');
+        });
+      }
+      
+      async playWeather(weatherType) {
+        try {
+          const intensity = document.getElementById('intensity-select').value;
+          const effect = document.getElementById('effect-select').value;
+          
+          const options = {
+            intensity: intensity,
+            useGlass: effect === 'glass',
+            useBottomView: effect === 'bottomview'
+          };
+          
+          this.log(`播放 ${weatherType} 天气视频...`, 'info');
+          
+          const success = await this.weatherManager.playWeatherVideo(weatherType, options);
+          
+          if (success) {
+            this.log(`${weatherType} 视频播放成功`, 'success');
+          } else {
+            this.log(`${weatherType} 视频播放失败或无视频`, 'warn');
+          }
+          
+        } catch (error) {
+          this.log(`播放视频时出错: ${error.message}`, 'error');
+        }
+      }
+      
+      updateActiveButton(activeButton) {
+        // 移除所有活动状态
+        document.querySelectorAll('.weather-button').forEach(btn => {
+          btn.classList.remove('active');
+        });
+        
+        // 添加活动状态
+        activeButton.classList.add('active');
+      }
+      
+      updateStatusPanel() {
+        const statusPanel = document.getElementById('status-panel');
+        const status = this.weatherManager.getStatus();
+        
+        statusPanel.innerHTML = `
+          <div class="status-item">
+            <span class="status-label">初始化状态:</span>
+            <span class="status-value">${status.isInitialized ? '已初始化' : '未初始化'}</span>
+          </div>
+          <div class="status-item">
+            <span class="status-label">播放状态:</span>
+            <span class="status-value">${status.isPlaying ? '播放中' : '已停止'}</span>
+          </div>
+          <div class="status-item">
+            <span class="status-label">当前天气:</span>
+            <span class="status-value">${status.currentWeather || '无'}</span>
+          </div>
+          <div class="status-item">
+            <span class="status-label">双层模式:</span>
+            <span class="status-value">${status.useDoubleLayer ? '启用' : '禁用'}</span>
+          </div>
+          <div class="status-item">
+            <span class="status-label">增强效果:</span>
+            <span class="status-value">${status.enhanceEffects ? '启用' : '禁用'}</span>
+          </div>
+        `;
+      }
+      
+      updatePerformancePanel() {
+        const performancePanel = document.getElementById('performance-panel');
+        const status = this.weatherManager.getStatus();
+        const uptime = Date.now() - this.startTime;
+        
+        performancePanel.innerHTML = `
+          <div class="performance-card">
+            <div class="performance-value">${status.performance.loadTime}ms</div>
+            <div class="performance-label">加载时间</div>
+          </div>
+          <div class="performance-card">
+            <div class="performance-value">${Math.round(uptime / 1000)}s</div>
+            <div class="performance-label">运行时间</div>
+          </div>
+          <div class="performance-card">
+            <div class="performance-value">${this.logs.length}</div>
+            <div class="performance-label">日志数量</div>
+          </div>
+          <div class="performance-card">
+            <div class="performance-value">${Math.round(status.progress)}%</div>
+            <div class="performance-label">播放进度</div>
+          </div>
+        `;
+      }
+      
+      updateVideoInfo(videoInfo) {
+        const videoInfoPanel = document.getElementById('video-info');
+        
+        if (!videoInfo) {
+          videoInfoPanel.innerHTML = '<h3>无视频信息</h3>';
+          return;
+        }
+        
+        videoInfoPanel.innerHTML = `
+          <h3>当前视频信息</h3>
+          <div class="video-details">
+            <div class="video-detail">
+              <span class="label">天气类型:</span>
+              <span class="value">${videoInfo.weatherType}</span>
+            </div>
+            <div class="video-detail">
+              <span class="label">视频路径:</span>
+              <span class="value">${videoInfo.videoPath || '无'}</span>
+            </div>
+            <div class="video-detail">
+              <span class="label">Alpha通道:</span>
+              <span class="value">${videoInfo.hasAlpha ? '是' : '否'}</span>
+            </div>
+            <div class="video-detail">
+              <span class="label">强度级别:</span>
+              <span class="value">${videoInfo.intensity || '无'}</span>
+            </div>
+            <div class="video-detail">
+              <span class="label">描述:</span>
+              <span class="value">${videoInfo.description}</span>
+            </div>
+          </div>
+        `;
+      }
+      
+      log(message, type = 'info') {
+        const timestamp = new Date().toLocaleTimeString();
+        const logEntry = {
+          timestamp,
+          message,
+          type
+        };
+        
+        this.logs.push(logEntry);
+        
+        // 限制日志数量
+        if (this.logs.length > 100) {
+          this.logs.shift();
+        }
+        
+        this.updateLogPanel();
+      }
+      
+      updateLogPanel() {
+        const logPanel = document.getElementById('log-panel');
+        
+        logPanel.innerHTML = this.logs.map(log => `
+          <div class="log-entry ${log.type}">
+            [${log.timestamp}] ${log.message}
+          </div>
+        `).join('');
+        
+        // 滚动到底部
+        logPanel.scrollTop = logPanel.scrollHeight;
+      }
+      
+      startStatusUpdate() {
+        setInterval(() => {
+          this.updateStatusPanel();
+          this.updatePerformancePanel();
+        }, 1000);
+      }
+    }
+    
+    // 启动测试应用
+    document.addEventListener('DOMContentLoaded', () => {
+      new VideoTestApp();
+    });
+  </script>
+</body>
+</html> 

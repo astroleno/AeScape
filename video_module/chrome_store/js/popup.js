@@ -9,10 +9,33 @@ class AeScapePopup {
   }
 
   async init() {
-    // 首先应用默认主题
-    this.applyDefaultTheme();
+    // 首先尝试从background获取当前主题，确保popup立即有正确的外观
+    await this.initializeTheme();
     await this.loadWeatherData();
     this.setupEventListeners();
+  }
+
+  // 初始化主题 - 确保popup立即显示正确颜色
+  async initializeTheme() {
+    try {
+      const themeResponse = await chrome.runtime.sendMessage({
+        type: 'theme.getCurrent'
+      });
+      
+      if (themeResponse?.success && themeResponse?.data) {
+        this.applyThemeData(themeResponse.data);
+      }
+    } catch (error) {
+      console.warn('Failed to initialize theme:', error);
+      // 设置默认主题变量，避免白色背景
+      const root = document.documentElement;
+      const hour = new Date().getHours();
+      const isNight = hour < 6 || hour > 19;
+      root.style.setProperty('--theme-gradient', isNight ? 
+        'linear-gradient(135deg, rgb(31, 40, 91) 0%, rgb(46, 54, 96) 100%)' :
+        'linear-gradient(135deg, rgba(66, 165, 245, 0.2) 0%, rgba(102, 187, 106, 0.05) 100%)');
+      root.style.setProperty('--theme-text', isNight ? 'rgba(255, 255, 255, 0.98)' : 'rgba(33, 33, 33, 0.9)');
+    }
   }
 
   async loadWeatherData() {
@@ -24,6 +47,17 @@ class AeScapePopup {
 
       if (weatherResponse?.success && weatherResponse?.data) {
         this.updateWeatherDisplay(weatherResponse.data);
+      } else {
+        // 如果没有天气数据，尝试强制更新
+        console.log('[AeScape] No weather data, forcing update...');
+        const forceUpdateResponse = await chrome.runtime.sendMessage({
+          type: 'weather.forceUpdate'
+        });
+        
+        if (forceUpdateResponse?.success && forceUpdateResponse?.data) {
+          this.updateWeatherDisplay(forceUpdateResponse.data);
+          weatherResponse.data = forceUpdateResponse.data; // 更新引用
+        }
       }
 
       // 获取位置数据
@@ -61,8 +95,7 @@ class AeScapePopup {
       thunderstorm: '雷暴'
     };
 
-    // 更新背景主题
-    this.updateBackgroundTheme(weather.weather?.code, weather.env?.isNight);
+    // 主题更新由统一的updateTheme处理
 
     const elements = {
       icon: document.getElementById('weather-icon'),
@@ -74,7 +107,12 @@ class AeScapePopup {
       visibility: document.getElementById('visibility')
     };
 
-    // SVG 图标已经在 HTML 中定义，无需更新
+    // 更新天气图标
+    if (elements.icon && window.AeScapeIcons) {
+      const weatherCode = weather.weather?.code || 'clear';
+      const isNight = weather.env?.isNight || false;
+      elements.icon.innerHTML = window.AeScapeIcons.getWeatherIcon(weatherCode, isNight, 32);
+    }
     
     if (elements.temp) {
       elements.temp.textContent = `${weather.env?.temperature || '--'}°`;
@@ -123,6 +161,9 @@ class AeScapePopup {
   }
 
   setupEventListeners() {
+    // 设置统一图标
+    this.setupIcons();
+    
     // 刷新按钮
     const refreshBtn = document.getElementById('refresh-btn');
     refreshBtn?.addEventListener('click', () => this.refreshWeather());
@@ -140,6 +181,22 @@ class AeScapePopup {
     
     // 初始化悬浮球状态
     this.initFloatingBallState();
+  }
+
+  setupIcons() {
+    // 使用统一图标库设置图标
+    if (window.AeScapeIcons) {
+      const refreshBtn = document.getElementById('refresh-btn');
+      const settingsBtn = document.getElementById('open-settings');
+      
+      if (refreshBtn) {
+        refreshBtn.innerHTML = window.AeScapeIcons.getUIIcon('refresh', 16);
+      }
+      
+      if (settingsBtn) {
+        settingsBtn.innerHTML = window.AeScapeIcons.getUIIcon('settings', 16);
+      }
+    }
   }
 
   async initFloatingBallState() {
@@ -173,33 +230,6 @@ class AeScapePopup {
     }
   }
 
-  updateBackgroundTheme(weatherCode, isNight) {
-    const body = document.body;
-    
-    // 移除所有天气主题类
-    body.classList.remove('weather-clear', 'weather-cloudy', 'weather-rain', 
-                         'weather-snow', 'weather-night');
-    
-    // 根据天气和时间应用主题
-    if (isNight) {
-      body.classList.add('weather-night');
-    } else {
-      switch (weatherCode) {
-        case 'rain':
-        case 'thunderstorm':
-          body.classList.add('weather-rain');
-          break;
-        case 'snow':
-          body.classList.add('weather-snow');
-          break;
-        case 'cloudy':
-          body.classList.add('weather-cloudy');
-          break;
-        default:
-          body.classList.add('weather-clear');
-      }
-    }
-  }
 
   async refreshWeather() {
     const btn = document.getElementById('refresh-btn');
@@ -248,36 +278,50 @@ class AeScapePopup {
     }
   }
 
-  // 更新主题
+  // 更新主题 - 统一从背景服务获取主题数据
   async updateTheme(weather, location = null) {
-    if (window.unifiedTheme) {
-      const weatherCode = weather.weather?.code || 'clear';
-      const hour = new Date().getHours();
-      let isNight = weather.env?.isNight || false;
+    try {
+      const themeResponse = await chrome.runtime.sendMessage({
+        type: 'theme.getCurrent'
+      });
       
-      // 获取日出日落时间
-      let sunTimes = null;
-      if (location?.lat && location?.lng) {
-        sunTimes = await window.unifiedTheme.getSunTimes(location.lat, location.lng);
-        
-        // 使用智能判断
-        if (sunTimes) {
-          isNight = window.unifiedTheme.isNightTime(hour, sunTimes);
-        }
+      if (themeResponse?.success && themeResponse?.data) {
+        this.applyThemeData(themeResponse.data);
       }
-      
-      window.unifiedTheme.applyToPopup(weatherCode, hour, isNight, sunTimes);
+    } catch (error) {
+      console.warn('Failed to get theme from background:', error);
     }
   }
 
-  applyDefaultTheme() {
-    if (window.unifiedTheme) {
-      const hour = new Date().getHours();
-      const isNight = hour < 6 || hour > 19;
-      // 使用晴天主题作为默认
-      window.unifiedTheme.applyToPopup('clear', hour, isNight);
-    }
+  // 应用从背景服务获取的主题数据
+  applyThemeData(themeData) {
+    if (!themeData?.popup) return;
+    
+    this.applyThemeStyles(themeData.popup);
   }
+
+  // 应用主题样式到popup
+  applyThemeStyles(theme) {
+    const root = document.documentElement;
+    
+    // 简化处理，直接使用原始渐变，不进行字符串处理
+    const gradient = theme.gradient || theme.primary;
+    
+    if (gradient) {
+      root.style.setProperty('--theme-gradient', gradient);
+      console.log('Applied theme gradient:', gradient);
+    }
+    
+    if (theme.text) {
+      root.style.setProperty('--theme-text', theme.text);
+    }
+    
+    // 设置其他主题变量
+    if (theme.primary) root.style.setProperty('--theme-primary', theme.primary);
+    if (theme.secondary) root.style.setProperty('--theme-secondary', theme.secondary);
+    if (theme.accent) root.style.setProperty('--theme-accent', theme.accent);
+  }
+
 }
 
 // 初始化弹窗

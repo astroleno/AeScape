@@ -1,1 +1,464 @@
- 
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>天景 AeScape - 视频模块示例</title>
+  <link rel="stylesheet" href="video-intro.css">
+  <style>
+    /* 字体导入 */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600;700&display=swap');
+
+    /* CSS变量 */
+    :root {
+      --theme-primary: rgba(66, 165, 245, 0.12);
+      --theme-secondary: rgba(102, 187, 106, 0.08);
+      --theme-accent: rgba(38, 198, 218, 0.06);
+      --theme-gradient: linear-gradient(135deg, var(--theme-primary) 0%, var(--theme-secondary) 100%);
+      --theme-text: rgba(0, 0, 0, 0.9); /* 改为黑色文字 */
+      
+      --glass-bg: rgba(255, 255, 255, 0.8); /* 改为白色半透明背景 */
+      --glass-bg-hover: rgba(255, 255, 255, 0.9);
+      --glass-border: rgba(0, 0, 0, 0.1);
+      --glass-shadow: 0 2px 24px rgba(0, 0, 0, 0.1);
+      --glass-shadow-hover: 0 4px 32px rgba(0, 0, 0, 0.15);
+      
+      --spacing-xs: 4px;
+      --spacing-sm: 8px;
+      --spacing-md: 16px;
+      --spacing-lg: 32px;
+      --spacing-xl: 48px;
+      --spacing-2xl: 64px;
+      
+      --radius-sm: 6px;
+      --radius-md: 12px;
+      --radius-lg: 16px;
+      --radius-xl: 24px;
+      
+      --text-xs: 11px;
+      --text-sm: 13px;
+      --text-base: 15px;
+      --text-lg: 18px;
+      --text-xl: 24px;
+      --text-2xl: 32px;
+      --text-3xl: 42px;
+      --text-4xl: 56px;
+    }
+
+    /* 全局重置 */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      height: 100%;
+      width: 100%;
+      overflow: hidden;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      font-weight: 300;
+      line-height: 1.5;
+      color: var(--theme-text);
+    }
+
+    /* 背景层 */
+    .background-layer {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+      background: var(--theme-gradient);
+      transition: background 800ms cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .gradient-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(180deg, 
+        rgba(0, 0, 0, 0) 0%,
+        rgba(0, 0, 0, 0.02) 50%,
+        rgba(0, 0, 0, 0.08) 100%);
+      z-index: 2;
+    }
+
+    /* 主内容 */
+    .content {
+      position: relative;
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      text-align: center;
+      padding: var(--spacing-xl);
+    }
+
+    .title {
+      font-size: var(--text-4xl);
+      font-weight: 300;
+      margin-bottom: var(--spacing-md);
+      text-shadow: 0 2px 10px rgba(0,0,0,0.3);
+      letter-spacing: -0.02em;
+    }
+
+    .subtitle {
+      font-size: var(--text-lg);
+      opacity: 0.8;
+      margin-bottom: var(--spacing-2xl);
+      font-weight: 300;
+      max-width: 600px;
+    }
+
+    /* 控制按钮 */
+    .controls {
+      display: flex;
+      gap: var(--spacing-md);
+      flex-wrap: wrap;
+      justify-content: center;
+      margin-bottom: var(--spacing-xl);
+    }
+
+    .btn {
+      padding: var(--spacing-md) var(--spacing-lg);
+      border: none;
+      border-radius: var(--radius-md);
+      background: var(--glass-bg);
+      color: var(--theme-text);
+      cursor: pointer;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      font-size: var(--text-base);
+      font-weight: 400;
+      backdrop-filter: blur(20px);
+      border: 1px solid var(--glass-border);
+      box-shadow: var(--glass-shadow);
+      min-width: 120px;
+    }
+
+    .btn:hover {
+      background: var(--glass-bg-hover);
+      transform: translateY(-2px);
+      box-shadow: var(--glass-shadow-hover);
+    }
+
+    .btn:active {
+      transform: translateY(0);
+    }
+
+    .btn.active {
+      background: var(--glass-bg-hover);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    /* 状态显示 */
+    .status {
+      position: fixed;
+      top: var(--spacing-lg);
+      right: var(--spacing-lg);
+      background: var(--glass-bg);
+      padding: var(--spacing-sm) var(--spacing-md);
+      border-radius: var(--radius-sm);
+      font-size: var(--text-sm);
+      backdrop-filter: blur(20px);
+      border: 1px solid var(--glass-border);
+      box-shadow: var(--glass-shadow);
+      z-index: 20;
+    }
+
+    /* 信息面板 */
+    .info {
+      position: fixed;
+      bottom: var(--spacing-lg);
+      left: var(--spacing-lg);
+      background: var(--glass-bg);
+      padding: var(--spacing-lg);
+      border-radius: var(--radius-md);
+      font-size: var(--text-sm);
+      max-width: 350px;
+      backdrop-filter: blur(20px);
+      border: 1px solid var(--glass-border);
+      box-shadow: var(--glass-shadow);
+      z-index: 20;
+    }
+
+    .info h3 {
+      margin: 0 0 var(--spacing-sm) 0;
+      font-size: var(--text-base);
+      font-weight: 500;
+    }
+
+    .info p {
+      margin: 0 0 var(--spacing-xs) 0;
+      opacity: 0.8;
+      line-height: 1.5;
+    }
+
+    /* 天气按钮特殊样式 */
+    .weather-btn {
+      position: relative;
+      overflow: hidden;
+    }
+
+    .weather-btn::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+      transition: left 0.5s;
+    }
+
+    .weather-btn:hover::before {
+      left: 100%;
+    }
+
+    /* 响应式设计 */
+    @media (max-width: 768px) {
+      .title {
+        font-size: var(--text-3xl);
+      }
+      
+      .subtitle {
+        font-size: var(--text-base);
+      }
+      
+      .controls {
+        gap: var(--spacing-sm);
+      }
+      
+      .btn {
+        padding: var(--spacing-sm) var(--spacing-md);
+        min-width: 100px;
+        font-size: var(--text-sm);
+      }
+      
+      .info {
+        max-width: 300px;
+        padding: var(--spacing-md);
+      }
+    }
+
+    /* 动画效果 */
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .content > * {
+      animation: fadeInUp 0.6s ease-out forwards;
+    }
+
+    .content > *:nth-child(1) { animation-delay: 0.1s; }
+    .content > *:nth-child(2) { animation-delay: 0.2s; }
+    .content > *:nth-child(3) { animation-delay: 0.3s; }
+  </style>
+</head>
+<body>
+  <!-- 背景层 -->
+  <div class="background-layer">
+    <div class="gradient-overlay"></div>
+  </div>
+
+  <!-- 视频容器 -->
+  <div class="intro-video-container" id="intro-video-container"></div>
+  
+  <!-- 状态显示 -->
+  <div class="status" id="status">准备就绪</div>
+  
+  <!-- 主内容 -->
+  <div class="content">
+    <h1 class="title">天景 AeScape</h1>
+    <p class="subtitle">视频模块示例 - 点击按钮体验不同天气效果，每个视频播放1.5秒后自动停止</p>
+    
+    <div class="controls">
+      <button class="btn weather-btn" onclick="playWeather('clear')">晴天</button>
+      <button class="btn weather-btn" onclick="playWeather('cloudy')">多云</button>
+      <button class="btn weather-btn" onclick="playWeather('rain')">雨天</button>
+      <button class="btn weather-btn" onclick="playWeather('snow')">雪天</button>
+      <button class="btn weather-btn" onclick="playWeather('fog')">雾天</button>
+      <button class="btn weather-btn" onclick="playWeather('thunderstorm')">雷暴</button>
+      <button class="btn" onclick="stopVideo()">停止</button>
+    </div>
+  </div>
+  
+  <!-- 信息面板 -->
+  <div class="info">
+    <h3>使用说明</h3>
+    <p>• 点击天气按钮播放对应的视频效果</p>
+    <p>• 视频播放流程：黑色背景 → 视频效果 → 透明背景</p>
+    <p>• 每个视频播放1.5秒后自动停止</p>
+    <p>• 支持双层视频和增强效果</p>
+    <p>• 晴天、多云、雾天共用云层视频</p>
+    <p>• 云层视频使用lighten模式解决黑边</p>
+    <p>• 雨滴雪花使用screen模式保持效果</p>
+    <p>• 点击"停止"按钮立即停止播放</p>
+    <p>• 键盘快捷键：1-6数字键切换天气</p>
+  </div>
+
+  <!-- 引入模块 -->
+  <script src="weather-video-mapper.js"></script>
+  <script src="VideoIntroAnimation.js"></script>
+  <script src="VideoWeatherManager.js"></script>
+  
+  <script>
+    // 全局变量
+    let weatherManager = null;
+    let currentActiveButton = null;
+    
+    // 初始化
+    document.addEventListener('DOMContentLoaded', () => {
+      initVideoManager();
+    });
+    
+    // 初始化视频管理器
+    function initVideoManager() {
+      try {
+        weatherManager = new VideoWeatherManager({
+          duration: 1500,
+          enhanceEffects: true,
+          autoPlay: true,
+          fallbackToStatic: true,
+          onStart: () => updateStatus('视频播放中...'),
+          onEnd: () => updateStatus('视频播放完成'),
+          onError: (error) => updateStatus('播放错误: ' + error.message),
+          onWeatherChange: (weather, videoInfo) => {
+            updateStatus(`当前天气: ${getWeatherName(weather)}`);
+          }
+        });
+        
+        weatherManager.init();
+        updateStatus('系统已就绪');
+        
+      } catch (error) {
+        updateStatus('初始化失败: ' + error.message);
+        console.error('初始化失败:', error);
+      }
+    }
+    
+    // 播放天气视频
+    async function playWeather(weatherType) {
+      if (!weatherManager) {
+        updateStatus('系统未初始化');
+        return;
+      }
+      
+      try {
+        updateStatus(`播放 ${getWeatherName(weatherType)} 效果...`);
+        
+        // 更新按钮状态
+        updateActiveButton(weatherType);
+        
+        const success = await weatherManager.playWeatherVideo(weatherType, {
+          intensity: 'medium'
+        });
+        
+        if (!success) {
+          updateStatus(`${getWeatherName(weatherType)} 无视频效果`);
+        }
+        
+      } catch (error) {
+        updateStatus('播放失败: ' + error.message);
+        console.error('播放失败:', error);
+      }
+    }
+    
+    // 停止视频
+    function stopVideo() {
+      if (weatherManager) {
+        weatherManager.stopVideo();
+        updateStatus('视频已停止');
+        
+        // 清除按钮状态
+        if (currentActiveButton) {
+          currentActiveButton.classList.remove('active');
+          currentActiveButton = null;
+        }
+      }
+    }
+    
+    // 更新活动按钮
+    function updateActiveButton(weatherType) {
+      // 清除之前的活动状态
+      if (currentActiveButton) {
+        currentActiveButton.classList.remove('active');
+      }
+      
+      // 设置新的活动状态
+      const buttons = document.querySelectorAll('.weather-btn');
+      buttons.forEach(btn => {
+        if (btn.textContent === getWeatherName(weatherType)) {
+          btn.classList.add('active');
+          currentActiveButton = btn;
+        }
+      });
+    }
+    
+    // 更新状态显示
+    function updateStatus(message) {
+      const statusEl = document.getElementById('status');
+      statusEl.textContent = message;
+      
+      // 添加时间戳
+      const timestamp = new Date().toLocaleTimeString();
+      console.log(`[${timestamp}] ${message}`);
+    }
+    
+    // 获取天气中文名称
+    function getWeatherName(weather) {
+      const names = {
+        clear: '晴天',
+        cloudy: '多云',
+        rain: '雨天',
+        snow: '雪天',
+        fog: '雾天',
+        thunderstorm: '雷暴'
+      };
+      return names[weather] || weather;
+    }
+    
+    // 键盘快捷键
+    document.addEventListener('keydown', (e) => {
+      switch(e.key) {
+        case '1':
+          playWeather('clear');
+          break;
+        case '2':
+          playWeather('cloudy');
+          break;
+        case '3':
+          playWeather('rain');
+          break;
+        case '4':
+          playWeather('snow');
+          break;
+        case '5':
+          playWeather('thunderstorm');
+          break;
+        case '6':
+          playWeather('fog');
+          break;
+        case ' ':
+          e.preventDefault();
+          stopVideo();
+          break;
+      }
+    });
+  </script>
+</body>
+</html> 

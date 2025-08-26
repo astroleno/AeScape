@@ -5,64 +5,98 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>天景 AeScape</title>
   <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
+    /* 最激进的CSS重置 - 从根源解决白边问题 */
+    *, *::before, *::after {
+      margin: 0 !important;
+      padding: 0 !important;
+      box-sizing: border-box !important;
+      border: none !important;
+      outline: none !important;
+    }
+
+    /* 简化的根元素样式 */
+    html {
+      margin: 0 !important;
+      padding: 0 !important;
+      border: none !important;
+      outline: none !important;
+      background: transparent !important;
+      width: 320px !important;
+      min-height: 480px !important;
+      overflow: visible !important;
     }
 
     :root {
-      --theme-gradient: linear-gradient(135deg, rgba(66, 165, 245, 0.12) 0%, rgba(102, 187, 106, 0.08) 100%);
+      --theme-gradient: linear-gradient(135deg, rgba(66, 165, 245, 0.2) 0%, rgba(102, 187, 106, 0.05) 100%);
       --theme-text: rgba(255, 255, 255, 0.95);
     }
 
     body {
-      width: 320px;
-      min-height: 480px;
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'PingFang SC', sans-serif;
-      background: var(--theme-gradient);
-      color: var(--theme-text);
-      transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
-      font-weight: 300;
-      border: none;
-      border-radius: 16px;
-      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25), 0 4px 12px rgba(0, 0, 0, 0.15);
-      line-height: 1.5;
+      width: 320px !important;
+      min-height: 480px !important;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'PingFang SC', sans-serif !important;
+      background: var(--theme-gradient) !important;
+      backdrop-filter: blur(20px) !important;
+      -webkit-backdrop-filter: blur(20px) !important;
+      color: var(--theme-text) !important;
+      font-weight: 300 !important;
+      border: none !important;
+      outline: none !important;
+      margin: 0 !important;
+      padding: 0 0 60px 0 !important;
+      overflow: visible !important;
+      line-height: 1.5 !important;
+      box-shadow: 
+        0 8px 32px rgba(0, 0, 0, 0.12),
+        0 2px 8px rgba(0, 0, 0, 0.08),
+        inset 0 1px 0 rgba(255, 255, 255, 0.15) !important;
     }
 
     .header {
-      padding: 24px 20px 16px;
-      text-align: center;
+      padding: 24px 20px 16px !important;
+      text-align: center !important;
+      border: none !important;
+      margin: 0 !important;
     }
 
     .logo {
-      font-size: 1.1rem;
-      font-weight: 500;
-      margin-bottom: 2px;
-      opacity: 0.9;
+      font-size: 1.1rem !important;
+      font-weight: 500 !important;
+      margin-bottom: 2px !important;
+      opacity: 0.9 !important;
+      border: none !important;
+      padding: 0 !important;
     }
 
     .content {
-      padding: 0 20px 20px;
+      padding: 0 20px 20px !important;
+      border: none !important;
+      margin: 0 !important;
     }
 
     .section {
-      padding: 18px;
-      margin-bottom: 14px;
+      padding: 20px !important;
+      margin-bottom: 16px !important;
+      border: none !important;
+      background: none !important;
     }
 
     .section-title {
-      font-size: 0.9rem;
-      font-weight: 600;
-      margin-bottom: 12px;
-      opacity: 0.9;
+      font-size: 0.9rem !important;
+      font-weight: 600 !important;
+      margin-bottom: 16px !important;
+      opacity: 0.9 !important;
+      border: none !important;
+      padding: 0 !important;
     }
 
     .weather-info {
-      display: flex;
-      align-items: center;
-      gap: 14px;
-      margin-bottom: 16px;
+      display: flex !important;
+      align-items: center !important;
+      gap: 16px !important;
+      margin-bottom: 20px !important;
+      border: none !important;
+      padding: 0 !important;
     }
 
     .weather-header {
@@ -83,8 +117,7 @@
       padding: 8px;
       border: none;
       border-radius: 8px;
-      background: rgba(0, 0, 0, 0.06);
-      backdrop-filter: blur(10px);
+      background: none;
       color: inherit;
       cursor: pointer;
       transition: all 0.2s ease;
@@ -96,7 +129,7 @@
     }
 
     .icon-button:hover {
-      background: rgba(0, 0, 0, 0.12);
+      background: rgba(0, 0, 0, 0.08);
       transform: translateY(-1px);
     }
 
@@ -122,57 +155,92 @@
     }
 
     .location-text {
-      font-size: 0.8rem;
-      opacity: 0.8;
-      margin-bottom: 8px;
+      font-size: 0.8rem !important;
+      opacity: 0.8 !important;
+      margin-bottom: 12px !important;
+      border: none !important;
+      padding: 0 !important;
     }
 
     .stats {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
-      font-size: 0.8rem;
-      line-height: 1.6;
+      display: grid !important;
+      grid-template-columns: 1fr 1fr !important;
+      gap: 16px 20px !important;
+      font-size: 0.8rem !important;
+      line-height: 1.6 !important;
+      border: none !important;
+      margin: 0 !important;
+      padding: 0 !important;
     }
 
     .stat-item {
-      display: flex;
-      justify-content: space-between;
-      opacity: 0.9;
-      padding: 2px 0;
+      display: flex !important;
+      flex-direction: column !important;
+      text-align: center !important;
+      opacity: 0.9 !important;
+      padding: 8px 6px !important;
+      transition: all 200ms ease !important;
+      border: none !important;
+      background: rgba(255, 255, 255, 0.03) !important;
+      border-radius: 8px !important;
+      margin: 0 !important;
+    }
+
+    .stat-item:hover {
+      transform: translateY(-1px) !important;
+      opacity: 0.8 !important;
+      background: rgba(255, 255, 255, 0.06) !important;
+    }
+
+    .stat-item span:first-child {
+      font-size: 0.7rem !important;
+      opacity: 0.6 !important;
+      margin-bottom: 4px !important;
+      font-weight: 400 !important;
+      text-transform: uppercase !important;
+      letter-spacing: 0.05em !important;
+      border: none !important;
+      padding: 0 !important;
+    }
+
+    .stat-item span:last-child {
+      font-size: 0.85rem !important;
+      font-weight: 500 !important;
+      opacity: 0.95 !important;
+      border: none !important;
+      padding: 0 !important;
     }
 
     .button {
-      width: 100%;
-      padding: 12px;
-      border: none;
-      border-radius: 12px;
-      background: rgba(0, 0, 0, 0.06);
-      backdrop-filter: blur(10px);
-      color: inherit;
-      font-size: 0.8rem;
-      font-weight: 500;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      margin-bottom: 8px;
-      border: 1px solid rgba(0, 0, 0, 0.08);
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      width: 100% !important;
+      padding: 12px !important;
+      border: 1px solid rgba(0, 0, 0, 0.08) !important;
+      border-radius: 12px !important;
+      background: rgba(0, 0, 0, 0.06) !important;
+      backdrop-filter: blur(10px) !important;
+      color: inherit !important;
+      font-size: 0.8rem !important;
+      font-weight: 500 !important;
+      cursor: pointer !important;
+      transition: all 0.2s ease !important;
+      margin-bottom: 8px !important;
+      margin-top: 0 !important;
+      margin-left: 0 !important;
+      margin-right: 0 !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      outline: none !important;
     }
 
     .button:hover {
-      background: rgba(0, 0, 0, 0.1);
-      transform: translateY(-1px);
-      border-color: rgba(0, 0, 0, 0.15);
+      background: rgba(0, 0, 0, 0.1) !important;
+      transform: translateY(-1px) !important;
+      border-color: rgba(0, 0, 0, 0.15) !important;
     }
 
     .footer {
-      padding: 12px 20px;
-      text-align: center;
-      font-size: 0.7rem;
-      opacity: 0.7;
-      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      display: none !important;
     }
 
     /* 开关样式 */
@@ -237,12 +305,7 @@
       <div class="weather-header">
         <div class="section-title">当前天气</div>
         <button class="icon-button" id="refresh-btn" title="刷新天气">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <polyline points="23 4,23 10,17 10"></polyline>
-            <polyline points="1 20,1 14,7 14"></polyline>
-            <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10"></path>
-            <path d="M3.51 15A9 9 0 0 0 18.36 18.36L23 14"></path>
-          </svg>
+          <!-- Icon will be set by JavaScript -->
         </button>
       </div>
       
@@ -250,17 +313,7 @@
       
       <div class="weather-info">
         <div class="weather-icon" id="weather-icon">
-          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-            <circle cx="12" cy="12" r="5"></circle>
-            <line x1="12" y1="1" x2="12" y2="3"></line>
-            <line x1="12" y1="21" x2="12" y2="23"></line>
-            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
-            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
-            <line x1="1" y1="12" x2="3" y2="12"></line>
-            <line x1="21" y1="12" x2="23" y2="12"></line>
-            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
-            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
-          </svg>
+          <!-- Weather icon will be set by JavaScript -->
         </div>
         <div class="weather-details">
           <div class="temperature" id="temperature">--°</div>
@@ -292,10 +345,7 @@
       <div class="settings-header">
         <div class="section-title">功能设置</div>
         <button class="icon-button" id="open-settings" title="扩展设置">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="3"></circle>
-            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
-          </svg>
+          <!-- Icon will be set by JavaScript -->
         </button>
       </div>
       <div class="toggle-group">
@@ -306,9 +356,43 @@
         </label>
       </div>
     </div>
-    </div>
   </div>
 
+  <script>
+    // 强制移除所有可能的边框
+    document.addEventListener('DOMContentLoaded', function() {
+      const allElements = document.querySelectorAll('*');
+      allElements.forEach(el => {
+        el.style.setProperty('border', 'none', 'important');
+        el.style.setProperty('border-top', 'none', 'important');
+        el.style.setProperty('border-bottom', 'none', 'important');
+        el.style.setProperty('outline', 'none', 'important');
+      });
+      
+      // 标记为popup页面
+      document.body.classList.add('popup-body');
+      
+      // 等待GlobalThemeManager可用并应用主题
+      const checkAndApplyTheme = () => {
+        if (window.GlobalThemeManager) {
+          console.log('[Popup] 使用GlobalThemeManager');
+          const currentTheme = window.GlobalThemeManager.getCurrentTheme();
+          if (currentTheme) {
+            window.GlobalThemeManager.applyToAllComponents();
+          } else {
+            // 设置默认主题
+            const hour = new Date().getHours();
+            const isNight = hour < 6 || hour > 19;
+            window.GlobalThemeManager.setGlobalTheme('clear', hour, isNight);
+          }
+        } else {
+          setTimeout(checkAndApplyTheme, 50);
+        }
+      };
+      
+      checkAndApplyTheme();
+    });
+  </script>
   <script src="js/icon-library.js"></script>
   <script src="js/theme-system.js"></script>
   <script src="js/popup.js"></script>

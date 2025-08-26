@@ -63,6 +63,9 @@ class AeScapeFloatingBall {
       // 设置消息监听
       this.setupMessageListener();
       
+      // 注册全局主题管理器监听器
+      await this.setupTheme();
+      
       console.log('[AeScape] 悬浮球系统初始化完成');
       
     } catch (error) {
@@ -132,27 +135,27 @@ class AeScapeFloatingBall {
     this.ball = document.createElement('div');
     this.ball.id = 'aescape-floating-ball';
     
-    // 设置基础样式
-    this.ball.style.cssText = `
-      position: fixed;
-      bottom: ${this.config.position.bottom};
-      right: ${this.config.position.right};
-      width: ${this.config.ballSize}px;
-      height: ${this.config.ballSize}px;
-      border-radius: 50%;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      z-index: 10000;
-      font-family: Inter, -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif;
-      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-      box-shadow: 0 6px 24px rgba(0, 0, 0, 0.2), 0 2px 8px rgba(0, 0, 0, 0.1);
-      user-select: none;
-      opacity: 0;
-      transform: scale(0.8);
-    `;
+    // 设置基础样式（不使用cssText避免覆盖问题）
+    Object.assign(this.ball.style, {
+      position: 'fixed',
+      bottom: this.config.position.bottom,
+      right: this.config.position.right,
+      width: this.config.ballSize + 'px',
+      height: this.config.ballSize + 'px',
+      borderRadius: '50%',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      cursor: 'pointer',
+      zIndex: '10000',
+      fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif',
+      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+      boxShadow: '0 6px 24px rgba(0, 0, 0, 0.2), 0 2px 8px rgba(0, 0, 0, 0.1)',
+      userSelect: 'none',
+      opacity: '0',
+      transform: 'scale(0.8)'
+    });
 
     // 创建内容结构
     this.ball.innerHTML = `
@@ -276,29 +279,21 @@ class AeScapeFloatingBall {
     console.log('[AeScape] 应用默认主题');
     
     const hour = new Date().getHours();
-    let theme;
+    const isNight = hour < 6 || hour > 19;
     
-    if (window.unifiedTheme) {
-      const isNight = hour < 6 || hour > 19;
-      theme = window.unifiedTheme.getTheme('clear', hour, isNight);
-      console.log('[AeScape] 使用统一主题系统:', theme);
-    } else {
-      // 备用主题
-      const isNight = hour < 6 || hour > 19;
-      theme = {
-        gradient: isNight 
-          ? 'linear-gradient(135deg, rgb(31, 40, 91) 0%, rgb(46, 54, 96) 100%)'
-          : 'linear-gradient(135deg, rgb(255, 167, 38) 0%, rgb(255, 138, 101) 100%)',
-        text: isNight ? 'rgba(255, 255, 255, 0.95)' : 'rgba(33, 33, 33, 0.9)'
-      };
-      console.log('[AeScape] 使用备用主题:', theme);
-    }
+    // 使用简单的默认样式，不依赖其他主题系统
+    const defaultGradient = isNight ? 
+      'linear-gradient(135deg, rgb(31, 40, 91) 0%, rgb(46, 54, 96) 100%)' :
+      'linear-gradient(135deg, rgba(66, 165, 245, 0.2) 0%, rgba(102, 187, 106, 0.05) 100%)';
+    const defaultText = isNight ? 'rgba(255, 255, 255, 0.98)' : 'rgba(33, 33, 33, 0.9)';
     
-    this.ball.style.background = theme.gradient;
-    this.ball.style.color = theme.text;
+    this.ball.style.setProperty('background', defaultGradient, 'important');
+    this.ball.style.setProperty('color', defaultText, 'important');
     
     // 设置默认天气图标
     this.setDefaultIcon();
+    
+    console.log('[AeScape] 默认主题已应用');
   }
 
   setDefaultIcon() {
@@ -321,36 +316,86 @@ class AeScapeFloatingBall {
     try {
       // 检查扩展是否可用
       if (!chrome.runtime?.id) {
-        throw new Error('扩展上下文不可用');
+        console.warn('[AeScape] 扩展上下文不可用，使用默认数据');
+        this.useDefaultWeatherData();
+        return;
       }
 
       // 获取天气数据
-      const weatherResponse = await Promise.race([
-        chrome.runtime.sendMessage({ type: 'weather.getCurrent' }),
-        new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('天气数据获取超时')), 5000)
-        )
-      ]);
+      let weatherResponse;
+      try {
+        weatherResponse = await Promise.race([
+          chrome.runtime.sendMessage({ type: 'weather.getCurrent' }),
+          new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('天气数据获取超时')), 3000)
+          )
+        ]);
+      } catch (msgError) {
+        console.warn('[AeScape] 消息传递失败:', msgError.message, '使用默认数据');
+        this.useDefaultWeatherData();
+        return;
+      }
 
       if (weatherResponse?.success && weatherResponse?.data) {
         this.weatherData = weatherResponse.data;
         this.updateBallDisplay(weatherResponse.data);
         console.log('[AeScape] 天气数据加载成功:', weatherResponse.data);
       } else {
-        throw new Error('天气数据响应无效');
+        console.warn('[AeScape] 天气数据响应无效，使用默认数据');
+        this.useDefaultWeatherData();
+        return;
       }
 
       // 获取位置数据
-      const locationResponse = await chrome.runtime.sendMessage({ type: 'location.getCurrent' });
-      if (locationResponse?.success && locationResponse?.data) {
-        this.currentLocation = locationResponse.data;
-        console.log('[AeScape] 位置数据加载成功:', locationResponse.data);
+      try {
+        const locationResponse = await Promise.race([
+          chrome.runtime.sendMessage({ type: 'location.getCurrent' }),
+          new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('位置数据获取超时')), 2000)
+          )
+        ]);
+        
+        if (locationResponse?.success && locationResponse?.data) {
+          this.currentLocation = locationResponse.data;
+          console.log('[AeScape] 位置数据加载成功:', locationResponse.data);
+        } else {
+          this.currentLocation = { name: '上海' };
+        }
+      } catch (locError) {
+        console.warn('[AeScape] 位置数据获取失败:', locError.message);
+        this.currentLocation = { name: '上海' };
       }
 
     } catch (error) {
       console.warn('[AeScape] 天气数据加载失败:', error);
-      this.showErrorState();
+      this.useDefaultWeatherData();
     }
+  }
+
+  useDefaultWeatherData() {
+    console.log('[AeScape] 使用默认天气数据');
+    const hour = new Date().getHours();
+    const isNight = hour < 6 || hour > 19;
+    
+    this.weatherData = {
+      location: { name: '上海', lat: 31.2, lon: 121.4 },
+      weather: {
+        code: 'clear',
+        humidity: 65,
+        windSpeedMps: 2.5,
+        visibilityKm: 10
+      },
+      env: {
+        temperature: 28,
+        feelsLike: 31,
+        isNight: isNight
+      },
+      timestamp: Date.now()
+    };
+    
+    this.currentLocation = { name: '上海' };
+    this.updateBallDisplay(this.weatherData);
+    this.applyDefaultTheme();
   }
 
   updateBallDisplay(weatherData) {
@@ -378,10 +423,38 @@ class AeScapeFloatingBall {
     this.updateTheme(weatherData);
   }
 
-  updateTheme(weatherData) {
+  async updateTheme(weatherData) {
     if (!this.ball || !weatherData) return;
 
     console.log('[AeScape] 更新主题');
+    
+    try {
+      // 从背景服务获取主题数据
+      const themeResponse = await chrome.runtime.sendMessage({
+        type: 'theme.getCurrent'
+      });
+      
+      if (themeResponse?.success && themeResponse?.data?.floating) {
+        // 缓存主题数据供面板使用
+        this.cachedThemeData = themeResponse.data;
+        
+        const theme = themeResponse.data.floating;
+        this.ball.style.setProperty('background', theme.gradient, 'important');
+        this.ball.style.setProperty('color', theme.text, 'important');
+        console.log('[AeScape] 主题已更新（来自背景服务）:', theme);
+      } else {
+        console.warn('[AeScape] 背景服务返回无效数据，使用备用方案:', themeResponse);
+        this.applyFallbackTheme(weatherData);
+      }
+    } catch (error) {
+      console.warn('[AeScape] 无法从背景服务获取主题，使用备用方案:', error);
+      this.applyFallbackTheme(weatherData);
+    }
+  }
+
+  applyFallbackTheme(weatherData) {
+    // 清除缓存的主题数据
+    this.cachedThemeData = null;
     
     const hour = new Date().getHours();
     const weatherCode = weatherData.weather?.code || 'clear';
@@ -394,10 +467,10 @@ class AeScapeFloatingBall {
       theme = this.getFallbackTheme(weatherCode, isNight);
     }
 
-    this.ball.style.background = theme.gradient;
-    this.ball.style.color = theme.text;
+    this.ball.style.setProperty('background', theme.gradient, 'important');
+    this.ball.style.setProperty('color', theme.text, 'important');
     
-    console.log('[AeScape] 主题已更新:', theme);
+    console.log('[AeScape] 主题已更新（备用方案）:', theme);
   }
 
   getFallbackTheme(weatherCode, isNight) {
@@ -470,50 +543,31 @@ class AeScapeFloatingBall {
       position: fixed;
       bottom: 160px;
       right: 20px;
-      width: 300px;
-      min-height: 200px;
+      width: 320px;
+      min-height: 300px;
       background: ${this.getCurrentThemeGradient()};
       backdrop-filter: blur(20px);
       border: none;
-      border-radius: 16px;
-      padding: 20px;
+      border-radius: 0px;
+      padding: 0;
       z-index: 10001;
-      font-family: Inter, -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif;
-      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25), 0 4px 12px rgba(0, 0, 0, 0.15);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'PingFang SC', sans-serif;
+      box-shadow: 
+        0 25px 80px rgba(0, 0, 0, 0.4),
+        0 15px 35px rgba(0, 0, 0, 0.3),
+        0 5px 15px rgba(0, 0, 0, 0.2);
       color: ${this.getCurrentThemeTextColor()};
       opacity: 0;
       transform: translateY(20px);
       transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
       user-select: none;
+      font-weight: 300;
+      line-height: 1.5;
+      overflow: hidden;
     `;
 
     // 设置面板内容
     this.panel.innerHTML = this.generatePanelContent();
-    
-    // 添加关闭按钮
-    const closeBtn = document.createElement('button');
-    closeBtn.innerHTML = window.AeScapeIcons ? window.AeScapeIcons.getUIIcon('close', 16) : '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>';
-    closeBtn.style.cssText = `
-      position: absolute;
-      top: 12px;
-      right: 12px;
-      background: none;
-      border: none;
-      color: inherit;
-      font-size: 18px;
-      cursor: pointer;
-      opacity: 0.7;
-      transition: opacity 0.2s ease;
-      padding: 4px;
-      border-radius: 4px;
-    `;
-    
-    closeBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      this.hidePanel();
-    });
-    
-    this.panel.appendChild(closeBtn);
     
     // 添加到页面
     document.body.appendChild(this.panel);
@@ -563,9 +617,27 @@ class AeScapeFloatingBall {
   generatePanelContent() {
     if (!this.weatherData) {
       return `
-        <div style="text-align: center; padding: 20px;">
-          <div style="font-size: 18px; margin-bottom: 10px;">天气数据加载中</div>
-          <div style="font-size: 14px; opacity: 0.7;">请稍候...</div>
+        <div style="
+          padding: 24px 20px;
+          text-align: center;
+          color: ${this.getCurrentThemeTextColor()};
+        ">
+          <div style="
+            font-size: 1.1rem;
+            font-weight: 500;
+            margin-bottom: 12px;
+            opacity: 0.9;
+          ">天景 AeScape</div>
+          <div style="
+            font-size: 18px;
+            margin-bottom: 10px;
+            font-weight: 400;
+          ">天气数据加载中</div>
+          <div style="
+            font-size: 14px;
+            opacity: 0.7;
+            font-weight: 300;
+          ">请稍候...</div>
         </div>
       `;
     }
@@ -587,43 +659,208 @@ class AeScapeFloatingBall {
     };
     
     const weatherDesc = weatherNames[weather.weather?.code] || '未知天气';
+    const textColor = this.getCurrentThemeTextColor();
+    const borderColor = this.getThemeBorderColor();
 
     return `
-      <div style="text-align: center; margin-bottom: 16px;">
-        <div style="font-size: 24px; margin-bottom: 4px;">${this.getWeatherSVG(weather.weather?.code, weather.env?.isNight, 32)}</div>
-        <div style="font-size: 18px; font-weight: 600; margin-bottom: 2px;">${temperature}°C</div>
-        <div style="font-size: 14px; opacity: 0.8;">${weatherDesc}</div>
-        <div style="font-size: 12px; opacity: 0.7; margin-top: 4px;">${location}</div>
+      <!-- Header section -->
+      <div style="
+        padding: 16px 16px 12px;
+        text-align: center;
+        border: none;
+        margin: 0;
+      ">
+        <div style="
+          font-size: 1.1rem;
+          font-weight: 500;
+          margin-bottom: 2px;
+          opacity: 0.9;
+          color: ${textColor};
+        ">天景 AeScape</div>
       </div>
-      
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; font-size: 13px;">
-        <div style="display: flex; justify-content: space-between;">
-          <span style="opacity: 0.8;">体感温度</span>
-          <span style="font-weight: 500;">${feelsLike}°C</span>
-        </div>
-        <div style="display: flex; justify-content: space-between;">
-          <span style="opacity: 0.8;">湿度</span>
-          <span style="font-weight: 500;">${humidity}%</span>
-        </div>
-        <div style="display: flex; justify-content: space-between;">
-          <span style="opacity: 0.8;">风速</span>
-          <span style="font-weight: 500;">${windSpeed} km/h</span>
-        </div>
-        <div style="display: flex; justify-content: space-between;">
-          <span style="opacity: 0.8;">能见度</span>
-          <span style="font-weight: 500;">${weather.weather?.visibilityKm || '--'} km</span>
+
+      <!-- Content section -->
+      <div style="
+        padding: 0 16px 12px;
+        border: none;
+        margin: 0;
+      ">
+        <!-- Weather section -->
+        <div style="
+          padding: 14px;
+          margin-bottom: 14px;
+          border: none;
+          background: none;
+        ">
+          <div style="
+            font-size: 0.9rem;
+            font-weight: 600;
+            margin-bottom: 8px;
+            opacity: 0.9;
+            color: ${textColor};
+          ">当前天气</div>
+          
+          <div style="
+            font-size: 0.8rem;
+            opacity: 0.8;
+            margin-bottom: 8px;
+            color: ${textColor};
+            font-weight: 400;
+          ">${location}</div>
+          
+          <div style="
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            margin-bottom: 16px;
+            color: ${textColor};
+          ">
+            <div style="
+              font-size: 2rem;
+            ">${this.getWeatherSVG(weather.weather?.code, weather.env?.isNight, 32)}</div>
+            <div style="flex: 1;">
+              <div style="
+                font-size: 1.5rem;
+                font-weight: 300;
+                line-height: 1.2;
+                margin-bottom: 4px;
+              ">${temperature}°</div>
+              <div style="
+                font-size: 0.85rem;
+                opacity: 0.85;
+                line-height: 1.4;
+              ">${weatherDesc}</div>
+            </div>
+          </div>
+          
+          <div style="
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px 20px;
+            font-size: 0.8rem;
+            line-height: 1.6;
+            color: ${textColor};
+            margin-bottom: 16px;
+          ">
+            <div style="
+              display: flex;
+              flex-direction: column;
+              text-align: center;
+              opacity: 0.9;
+              padding: 10px 8px;
+              transition: all 200ms ease;
+              background: rgba(255, 255, 255, 0.03);
+              border-radius: 8px;
+            ">
+              <span style="
+                font-size: 0.7rem;
+                opacity: 0.6;
+                margin-bottom: 4px;
+                font-weight: 400;
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+              ">体感</span>
+              <span style="
+                font-size: 0.85rem;
+                font-weight: 500;
+                opacity: 0.95;
+              ">${feelsLike}°</span>
+            </div>
+            <div style="
+              display: flex;
+              flex-direction: column;
+              text-align: center;
+              opacity: 0.9;
+              padding: 10px 8px;
+              transition: all 200ms ease;
+              background: rgba(255, 255, 255, 0.03);
+              border-radius: 8px;
+            ">
+              <span style="
+                font-size: 0.7rem;
+                opacity: 0.6;
+                margin-bottom: 4px;
+                font-weight: 400;
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+              ">湿度</span>
+              <span style="
+                font-size: 0.85rem;
+                font-weight: 500;
+                opacity: 0.95;
+              ">${humidity}%</span>
+            </div>
+            <div style="
+              display: flex;
+              flex-direction: column;
+              text-align: center;
+              opacity: 0.9;
+              padding: 10px 8px;
+              transition: all 200ms ease;
+              background: rgba(255, 255, 255, 0.03);
+              border-radius: 8px;
+            ">
+              <span style="
+                font-size: 0.7rem;
+                opacity: 0.6;
+                margin-bottom: 4px;
+                font-weight: 400;
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+              ">风速</span>
+              <span style="
+                font-size: 0.85rem;
+                font-weight: 500;
+                opacity: 0.95;
+              ">${windSpeed} km/h</span>
+            </div>
+            <div style="
+              display: flex;
+              flex-direction: column;
+              text-align: center;
+              opacity: 0.9;
+              padding: 10px 8px;
+              transition: all 200ms ease;
+              background: rgba(255, 255, 255, 0.03);
+              border-radius: 8px;
+            ">
+              <span style="
+                font-size: 0.7rem;
+                opacity: 0.6;
+                margin-bottom: 4px;
+                font-weight: 400;
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+              ">能见度</span>
+              <span style="
+                font-size: 0.85rem;
+                font-weight: 500;
+                opacity: 0.95;
+              ">${weather.weather?.visibilityKm || '--'} km</span>
+            </div>
+          </div>
         </div>
       </div>
-      
-      <div style="margin-top: 16px; padding-top: 12px; border-top: 1px solid rgba(255, 255, 255, 0.2); text-align: center;">
-        <div style="font-size: 11px; opacity: 0.7;">
-          更新时间：${weather.timestamp ? new Date(weather.timestamp).toLocaleTimeString('zh-CN') : '--'}
-        </div>
+
+      <!-- Footer section -->
+      <div style="
+        padding: 2px 16px;
+        text-align: center;
+        font-size: 0.7rem;
+        opacity: 0.7;
+        color: ${textColor};
+      ">
+        更新时间 ${weather.timestamp ? new Date(weather.timestamp).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) : '--'}
       </div>
     `;
   }
 
   getCurrentThemeGradient() {
+    // 优先使用缓存的主题数据
+    if (this.cachedThemeData?.floating?.gradient) {
+      return this.cachedThemeData.floating.gradient;
+    }
+    
     if (window.unifiedTheme && this.weatherData) {
       const hour = new Date().getHours();
       const weatherCode = this.weatherData.weather?.code || 'clear';
@@ -641,12 +878,12 @@ class AeScapeFloatingBall {
   }
 
   getCurrentThemeTextColor() {
-    if (window.unifiedTheme && this.weatherData) {
-      const hour = new Date().getHours();
-      const weatherCode = this.weatherData.weather?.code || 'clear';
-      const isNight = this.weatherData.env?.isNight || (hour < 6 || hour > 19);
-      const theme = window.unifiedTheme.getTheme(weatherCode, hour, isNight);
-      return theme.text;
+    // 优先使用缓存的主题数据
+    if (this.cachedThemeData?.panel?.text) {
+      return this.cachedThemeData.panel.text;
+    }
+    if (this.cachedThemeData?.floating?.text) {
+      return this.cachedThemeData.floating.text;
     }
     
     // 备用方案
@@ -655,12 +892,65 @@ class AeScapeFloatingBall {
     return isNight ? 'rgba(255, 255, 255, 0.95)' : 'rgba(33, 33, 33, 0.9)';
   }
 
+  getThemeBorderColor() {
+    // 根据主题文本颜色生成适合的边框颜色
+    const textColor = this.getCurrentThemeTextColor();
+    
+    // 如果是深色文本，使用深色边框
+    if (textColor.includes('33, 33, 33')) {
+      return 'rgba(0, 0, 0, 0.15)';
+    }
+    
+    // 默认使用白色边框（适用于深色主题）
+    return 'rgba(255, 255, 255, 0.2)';
+  }
+
   setupTimers() {
     // 定期更新天气数据
     this.updateTimer = setInterval(() => {
       console.log('[AeScape] 定时更新天气数据');
       this.loadWeatherData();
     }, this.config.updateInterval);
+  }
+
+  async setupTheme() {
+    // 直接从background服务获取主题数据
+    try {
+      const themeResponse = await chrome.runtime.sendMessage({
+        type: 'theme.getCurrent'
+      });
+      
+      if (themeResponse?.success && themeResponse?.data) {
+        this.applyTheme(themeResponse.data);
+      }
+    } catch (error) {
+      console.warn('[AeScape] 主题获取失败，使用默认主题:', error);
+      this.applyDefaultTheme();
+    }
+  }
+
+  applyTheme(themeData) {
+    if (!themeData || !this.ball) {
+      console.warn('[AeScape] 无法应用主题：缺少数据或悬浮球');
+      return;
+    }
+    
+    console.log('[AeScape] 应用主题:', themeData);
+    
+    // 应用到悬浮球
+    const floatingTheme = themeData.floating;
+    if (floatingTheme) {
+      this.ball.style.setProperty('background', floatingTheme.gradient, 'important');
+      this.ball.style.setProperty('color', floatingTheme.text, 'important');
+    }
+    
+    // 缓存主题数据供面板使用，确保panel数据可用
+    this.cachedThemeData = themeData;
+    if (!this.cachedThemeData.panel && this.cachedThemeData.floating) {
+      this.cachedThemeData.panel = { ...this.cachedThemeData.floating };
+    }
+    
+    console.log('[AeScape] 悬浮球主题已更新');
   }
 
   scheduleRetry() {

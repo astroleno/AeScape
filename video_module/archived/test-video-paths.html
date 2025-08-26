@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>视频路径测试</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      background: #f0f0f0;
+    }
+    .test-item {
+      margin: 10px 0;
+      padding: 10px;
+      background: white;
+      border-radius: 5px;
+      border-left: 4px solid #007cba;
+    }
+    .success {
+      border-left-color: #4caf50;
+    }
+    .error {
+      border-left-color: #f44336;
+    }
+    .video-test {
+      margin: 10px 0;
+    }
+    video {
+      max-width: 300px;
+      max-height: 200px;
+      border: 1px solid #ccc;
+    }
+  </style>
+</head>
+<body>
+  <h1>视频路径测试</h1>
+  <div id="test-results"></div>
+
+  <script>
+    // 测试视频路径
+    const testVideos = [
+      '../video/tab/c/cloudy_1.webm',
+      '../video/tab/r/rain_4.webm',
+      '../video/tab/s/snow_1.webm',
+      '../video/tab/g/glass_1.webm',
+      '../video/tab/bv/bottomview_1.webm'
+    ];
+
+    const resultsDiv = document.getElementById('test-results');
+
+    async function testVideoPath(path) {
+      return new Promise((resolve) => {
+        const video = document.createElement('video');
+        video.muted = true;
+        video.preload = 'metadata';
+        
+        const timeout = setTimeout(() => {
+          video.removeEventListener('loadedmetadata', onSuccess);
+          video.removeEventListener('error', onError);
+          resolve({ path, success: false, error: '超时' });
+        }, 5000);
+
+        const onSuccess = () => {
+          clearTimeout(timeout);
+          video.removeEventListener('loadedmetadata', onSuccess);
+          video.removeEventListener('error', onError);
+          resolve({ path, success: true, duration: video.duration });
+        };
+
+        const onError = (e) => {
+          clearTimeout(timeout);
+          video.removeEventListener('loadedmetadata', onSuccess);
+          video.removeEventListener('error', onError);
+          resolve({ path, success: false, error: e.message || '加载失败' });
+        };
+
+        video.addEventListener('loadedmetadata', onSuccess);
+        video.addEventListener('error', onError);
+        video.src = path;
+      });
+    }
+
+    async function runTests() {
+      for (const path of testVideos) {
+        const result = await testVideoPath(path);
+        
+        const div = document.createElement('div');
+        div.className = `test-item ${result.success ? 'success' : 'error'}`;
+        
+        if (result.success) {
+          div.innerHTML = `
+            <h3>✅ ${path}</h3>
+            <p>状态: 成功</p>
+            <p>时长: ${result.duration.toFixed(2)}秒</p>
+            <div class="video-test">
+              <video controls muted>
+                <source src="${path}" type="video/webm">
+                您的浏览器不支持视频播放。
+              </video>
+            </div>
+          `;
+        } else {
+          div.innerHTML = `
+            <h3>❌ ${path}</h3>
+            <p>状态: 失败</p>
+            <p>错误: ${result.error}</p>
+          `;
+        }
+        
+        resultsDiv.appendChild(div);
+      }
+    }
+
+    // 运行测试
+    runTests();
+  </script>
+</body>
+</html>
