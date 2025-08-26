@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Cloud Luma-Key on Bright Background</title>
+<style>
+  :root{
+    /* 你可以微调这两个参数的“感觉” —— 通过选择不同的 LUT 组合（见下文 A/B/C） */
+    --bg1: #ffffff;
+    --bg2: #eef6ff;
+    --bg3: #e7f2ff;
+    /* 给云做轻微染色，使其更贴近背景，降低边界对比 */
+    --tint: rgba(250,250,255,0.08);
+  }
+
+  html,body{height:100%;}
+  body{
+    margin:0;
+    background: linear-gradient(180deg, var(--bg1) 0%, var(--bg2) 60%, var(--bg3) 100%);
+    overflow:hidden;
+    font-family: system-ui,-apple-system,Segoe UI,Roboto,Arial;
+  }
+
+  .stage{
+    position:relative;
+    width:100%;
+    height:100%;
+    isolation:isolate; /* 避免不必要的混合影响其它元素 */
+  }
+
+  video.cloud{
+    position:absolute;
+    inset:0;
+    width:100%;
+    height:100%;
+    object-fit:cover;
+    filter: url(#lumaKey) brightness(1.06) contrast(1.12); /* 轻微去灰提亮 */
+    pointer-events:none;
+  }
+
+  /* 轻微整体染色，进一步贴近背景（可按需调整或删除） */
+  .stage::after{
+    content:"";
+    position:absolute; inset:0;
+    background: var(--tint);
+    pointer-events:none;
+  }
+
+  /* 角落放个小提示，便于你切换 LUT 组调效果 */
+  .hint{
+    position: absolute; right:12px; bottom:12px;
+    background: rgba(255,255,255,0.7);
+    padding:8px 10px; border-radius:8px;
+    line-height:1.2; font-size:12px;
+    user-select: none;
+  }
+  .hint code{background:transparent; padding:0;}
+</style>
+</head>
+<body>
+  <div class="stage">
+    <!-- 改成你的路径（本地文件请用 file:/// 前缀） -->
+    <!-- 例如：src="file:///F:/github/AeScape/video/tab/c/cloudy_2.webm" -->
+    <video class="cloud"
+      src="file:///F:/github/AeScape/video/tab/c/cloudy_2.webm"
+      autoplay muted loop playsinline>
+    </video>
+
+    <div class="hint">
+      SVG 亮度键（含软阈值与羽化）<br>
+      想更干净：在滤镜里把 <code>alphaSoftA</code> 改为 <code>alphaSoftB</code><br>
+      想保留更多暗雾：改为 <code>alphaSoftC</code><br>
+      羽化强度：调 <code>feGaussianBlur stdDeviation</code>
+    </div>
+  </div>
+
+  <!-- 关键：内联 SVG 滤镜 -->
+  <svg width="0" height="0" style="position:absolute">
+    <filter id="lumaKey" color-interpolation-filters="sRGB">
+      <!-- 1) 源图 -->
+      <feColorMatrix in="SourceGraphic" type="matrix"
+        values="
+          1 0 0 0 0
+          0 1 0 0 0
+          0 0 1 0 0
+          0 0 0 1 0" result="src"/>
+
+      <!-- 2) 用亮度做反相作为候选 alpha：A' = 1 - (0.2126R + 0.7152G + 0.0722B) -->
+      <feColorMatrix in="src" type="matrix"
+        values="
+           0       0       0     0 0
+           0       0       0     0 0
+           0       0       0     0 0
+          -0.2126 -0.7152 -0.0722 0 1" result="alphaInvLuma"/>
+
+      <!-- 3) 软阈值（分三组 LUT，三选一；默认用 A） -->
+      <!-- A：中等阈值/软度（大多数素材可用） -->
+      <feComponentTransfer in="alphaInvLuma" result="alphaSoftA">
+        <feFuncA type="table" tableValues="
+          0 0 0 0.05 0.12 0.22 0.35 0.50 0.66 0.82 1
+        "/>
+      </feComponentTransfer>
+
+      <!-- B：更干净（压掉更多深灰，可能吃细节） -->
+      <feComponentTransfer in="alphaInvLuma" result="alphaSoftB">
+        <feFuncA type="table" tableValues="
+          0 0 0 0.02 0.06 0.14 0.28 0.48 0.72 0.9 1
+        "/>
+      </feComponentTransfer>
+
+      <!-- C：更保守（保留更多暗雾/体积感） -->
+      <feComponentTransfer in="alphaInvLuma" result="alphaSoftC">
+        <feFuncA type="table" tableValues="
+          0 0.03 0.07 0.12 0.18 0.28 0.42 0.60 0.78 0.9 1
+        "/>
+      </feComponentTransfer>
+
+      <!-- 选用哪一组：把下行的 in 替换为 alphaSoftB 或 alphaSoftC -->
+      <feBlend in="alphaSoftB" in2="alphaSoftA" mode="normal" result="alphaChosen"/>
+
+      <!-- 4) 羽化边缘（增大更柔和；过大会虚） -->
+      <feGaussianBlur in="alphaChosen" stdDeviation="0.35" result="alphaFeather"/>
+
+      <!-- 5) 轻微腐蚀，压住细小灰边噪点（过大会吃雾，按需减小或删掉） -->
+      <feMorphology in="alphaFeather" operator="erode" radius="0.3" result="alphaFeatherTamed"/>
+
+      <!-- 6) 用新 alpha 回贴 RGB -->
+      <feComposite in="src" in2="alphaFeatherTamed" operator="arithmetic"
+                   k1="0" k2="1" k3="0" k4="0" result="rgbWithNewAlpha"/>
+
+      <!-- 7) 轻微 gamma 去灰（可按需调整或移除） -->
+      <feComponentTransfer in="rgbWithNewAlpha" result="out">
+        <feFuncR type="gamma" amplitude="1" exponent="0.95" offset="0"/>
+        <feFuncG type="gamma" amplitude="1" exponent="0.95" offset="0"/>
+        <feFuncB type="gamma" amplitude="1" exponent="0.95" offset="0"/>
+        <feFuncA type="identity"/>
+      </feComponentTransfer>
+    </filter>
+  </svg>
+</body>
+</html>
