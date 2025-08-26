@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>视频播放测试 - 天景 AeScape</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: linear-gradient(135deg, #74b9ff 0%, #0984e3 50%, #00cec9 100%);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+    }
+    
+    .test-container {
+      text-align: center;
+      max-width: 600px;
+      padding: 20px;
+    }
+    
+    .video-container {
+      position: relative;
+      width: 100%;
+      max-width: 400px;
+      margin: 20px auto;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    }
+    
+    .intro-video {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+    
+    .controls {
+      margin-top: 20px;
+    }
+    
+    button {
+      background: #007AFF;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 16px;
+      cursor: pointer;
+      margin: 0 8px;
+      transition: background 0.3s ease;
+    }
+    
+    button:hover {
+      background: #0056CC;
+    }
+    
+    .status {
+      margin-top: 20px;
+      padding: 12px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <div class="test-container">
+    <h1>🎬 视频播放测试</h1>
+    <p>测试天景 AeScape 的开幕视频播放功能（平滑过渡效果）</p>
+    <p style="font-size: 14px; opacity: 0.8;">注意：从黑色背景开始，平滑过渡到透明背景，避免Alpha通道边缘黑边</p>
+    
+    <div class="video-container">
+      <video class="intro-video" id="test-video" controls>
+        <source src="video/M01522_2s_2K.webm" type="video/webm">
+        您的浏览器不支持视频播放。
+      </video>
+    </div>
+    
+    <div class="controls">
+      <button onclick="playVideo()">播放</button>
+      <button onclick="pauseVideo()">暂停</button>
+      <button onclick="restartVideo()">重新开始</button>
+    </div>
+    
+    <div class="status" id="status">
+      状态: 准备就绪
+    </div>
+  </div>
+
+  <script>
+    const video = document.getElementById('test-video');
+    const status = document.getElementById('status');
+    
+    function updateStatus(message) {
+      status.textContent = `状态: ${message}`;
+    }
+    
+    function playVideo() {
+      video.play().then(() => {
+        updateStatus('播放中');
+      }).catch(error => {
+        updateStatus(`播放失败: ${error.message}`);
+      });
+    }
+    
+    function pauseVideo() {
+      video.pause();
+      updateStatus('已暂停');
+    }
+    
+    function restartVideo() {
+      video.currentTime = 0;
+      video.play().then(() => {
+        updateStatus('重新播放中');
+      }).catch(error => {
+        updateStatus(`重新播放失败: ${error.message}`);
+      });
+    }
+    
+    // 视频事件监听
+    video.addEventListener('loadstart', () => updateStatus('开始加载'));
+    video.addEventListener('loadeddata', () => updateStatus('数据加载完成'));
+    video.addEventListener('canplay', () => updateStatus('可以播放'));
+    video.addEventListener('played', () => updateStatus('开始播放'));
+    video.addEventListener('pause', () => updateStatus('已暂停'));
+    video.addEventListener('ended', () => updateStatus('播放结束'));
+    video.addEventListener('error', (e) => {
+      updateStatus(`错误: ${e.message || '未知错误'}`);
+    });
+    
+    // 页面加载完成后的状态
+    window.addEventListener('load', () => {
+      updateStatus('页面加载完成，视频准备就绪');
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,209 @@
+/**
+ * 天景 AeScape - 内容脚本样式
+ * 确保悬浮球在所有网站都能正确显示
+ */
+
+#aescape-floating-ball {
+  position: fixed !important;
+  bottom: 80px !important;
+  right: 20px !important;
+  width: 60px !important;
+  height: 60px !important;
+  background: rgba(255, 255, 255, 0.15) !important;
+  backdrop-filter: blur(20px) !important;
+  -webkit-backdrop-filter: blur(20px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  border-radius: 50% !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer !important;
+  z-index: 10000 !important;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif !important;
+  transition: all 0.3s ease !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1) !important;
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  color: white !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  box-sizing: border-box !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+#aescape-floating-ball .ball-content {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  height: 100% !important;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3) !important;
+  box-sizing: border-box !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+#aescape-floating-ball .weather-icon {
+  font-size: 18px !important;
+  line-height: 1 !important;
+  margin-bottom: 2px !important;
+  margin-top: 0 !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  padding: 0 !important;
+  border: none !important;
+  background: transparent !important;
+  display: block !important;
+}
+
+#aescape-floating-ball .temperature {
+  font-size: 10px !important;
+  font-weight: 600 !important;
+  line-height: 1 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: none !important;
+  background: transparent !important;
+  display: block !important;
+  color: white !important;
+}
+
+#aescape-floating-ball .location-name {
+  font-size: 8px !important;
+  opacity: 0.8 !important;
+  margin-top: 1px !important;
+  max-width: 50px !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  text-align: center !important;
+  color: white !important;
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  display: block !important;
+}
+
+#aescape-floating-ball .ball-tooltip {
+  position: absolute !important;
+  bottom: 70px !important;
+  right: 0 !important;
+  background: rgba(0, 0, 0, 0.8) !important;
+  color: white !important;
+  padding: 6px 10px !important;
+  border-radius: 6px !important;
+  font-size: 11px !important;
+  white-space: nowrap !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
+  transition: all 0.2s ease !important;
+  pointer-events: none !important;
+  z-index: 10001 !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+  margin: 0 !important;
+  border: none !important;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif !important;
+}
+
+#aescape-floating-ball:hover {
+  transform: scale(1.1) !important;
+  background: rgba(255, 255, 255, 0.25) !important;
+}
+
+#aescape-detail-panel {
+  position: fixed !important;
+  bottom: 150px !important;
+  right: 20px !important;
+  width: 280px !important;
+  background: rgba(255, 255, 255, 0.95) !important;
+  backdrop-filter: blur(20px) !important;
+  -webkit-backdrop-filter: blur(20px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.3) !important;
+  border-radius: 16px !important;
+  padding: 20px !important;
+  z-index: 10001 !important;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1) !important;
+  color: #333 !important;
+  box-sizing: border-box !important;
+  margin: 0 !important;
+  font-size: 14px !important;
+  line-height: 1.4 !important;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  #aescape-floating-ball {
+    bottom: 60px !important;
+    right: 15px !important;
+    width: 50px !important;
+    height: 50px !important;
+  }
+  
+  #aescape-floating-ball .weather-icon {
+    font-size: 16px !important;
+  }
+  
+  #aescape-floating-ball .temperature {
+    font-size: 9px !important;
+  }
+  
+  #aescape-floating-ball .location-name {
+    font-size: 7px !important;
+    max-width: 40px !important;
+  }
+  
+  #aescape-detail-panel {
+    width: 260px !important;
+    bottom: 120px !important;
+    right: 15px !important;
+    padding: 16px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  #aescape-floating-ball {
+    bottom: 50px !important;
+    right: 10px !important;
+  }
+  
+  #aescape-detail-panel {
+    width: calc(100vw - 40px) !important;
+    max-width: 280px !important;
+    right: 20px !important;
+    left: 20px !important;
+    bottom: 110px !important;
+  }
+}
+
+/* 防止与网站样式冲突 */
+#aescape-floating-ball,
+#aescape-floating-ball * {
+  font-style: normal !important;
+  font-variant: normal !important;
+  text-decoration: none !important;
+  text-transform: none !important;
+  text-indent: 0 !important;
+  letter-spacing: normal !important;
+  word-spacing: normal !important;
+  white-space: normal !important;
+  direction: ltr !important;
+  -webkit-font-smoothing: antialiased !important;
+  -moz-osx-font-smoothing: grayscale !important;
+}
+
+#aescape-detail-panel,
+#aescape-detail-panel * {
+  font-style: normal !important;
+  font-variant: normal !important;
+  text-decoration: none !important;
+  text-transform: none !important;
+  text-indent: 0 !important;
+  letter-spacing: normal !important;
+  word-spacing: normal !important;
+  direction: ltr !important;
+  -webkit-font-smoothing: antialiased !important;
+  -moz-osx-font-smoothing: grayscale !important;
+}

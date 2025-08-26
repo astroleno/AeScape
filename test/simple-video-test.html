@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>简单视频测试 - 天景 AeScape</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 20px;
+      font-family: Arial, sans-serif;
+      background: #f0f0f0;
+    }
+    
+    .test-container {
+      max-width: 800px;
+      margin: 0 auto;
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    
+    .video-container {
+      position: relative;
+      width: 100%;
+      height: 400px;
+      background: linear-gradient(135deg, #74b9ff 0%, #0984e3 50%, #00cec9 100%);
+      border-radius: 8px;
+      overflow: hidden;
+      margin: 20px 0;
+    }
+    
+    .background-interface {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 24px;
+      font-weight: bold;
+      text-align: center;
+      z-index: 1;
+    }
+    
+    .intro-video-container {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1000;
+      background: #000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 1;
+      transition: all 0.4s ease-out;
+      pointer-events: none;
+    }
+    
+    .intro-video-container.video-ready {
+      background: transparent;
+      transition: background 0.1s ease-out;
+    }
+    
+    .intro-video-container.fade-out {
+      opacity: 0;
+    }
+    
+    .intro-video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: center;
+      mix-blend-mode: normal;
+      pointer-events: none;
+    }
+    
+    .controls {
+      text-align: center;
+      margin: 20px 0;
+    }
+    
+    button {
+      background: #007bff;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 4px;
+      cursor: pointer;
+      margin: 0 5px;
+      font-size: 16px;
+    }
+    
+    button:hover {
+      background: #0056b3;
+    }
+    
+    .status {
+      text-align: center;
+      margin: 20px 0;
+      padding: 10px;
+      background: #e9ecef;
+      border-radius: 4px;
+    }
+    
+    .progress {
+      width: 100%;
+      height: 20px;
+      background: #e9ecef;
+      border-radius: 10px;
+      overflow: hidden;
+      margin: 10px 0;
+    }
+    
+    .progress-fill {
+      height: 100%;
+      background: #007bff;
+      transition: width 0.1s ease;
+    }
+  </style>
+</head>
+<body>
+  <div class="test-container">
+    <h1>🎬 简单视频测试</h1>
+    <p>测试视频播放和过渡效果</p>
+    
+    <div class="video-container">
+      <div class="background-interface">
+        <div>
+          <div style="font-size: 48px; margin-bottom: 20px;">🌤️</div>
+          <div>天景 AeScape</div>
+          <div style="font-size: 16px; margin-top: 10px; opacity: 0.8;">视频播放结束后显示的主界面</div>
+        </div>
+      </div>
+      <div class="intro-video-container" id="intro-video-container">
+        <video class="intro-video" id="intro-video" muted playsinline>
+          <source src="../video/M01522_2s_2K.webm" type="video/webm">
+        </video>
+      </div>
+    </div>
+    
+    <div class="progress">
+      <div class="progress-fill" id="progress-fill"></div>
+    </div>
+    
+    <div class="status" id="status">准备就绪</div>
+    
+    <div class="controls">
+      <button onclick="playVideo()">播放</button>
+      <button onclick="stopVideo()">停止</button>
+      <button onclick="resetVideo()">重置</button>
+    </div>
+  </div>
+
+  <script src="../js/video-intro.js"></script>
+  <script>
+    let videoAnimation = null;
+    
+    function updateStatus(message) {
+      document.getElementById('status').textContent = message;
+    }
+    
+    function updateProgress(currentTime, duration) {
+      if (duration > 0) {
+        const progress = (currentTime / duration) * 100;
+        document.getElementById('progress-fill').style.width = progress + '%';
+      }
+    }
+    
+    function playVideo() {
+      if (!videoAnimation) {
+        videoAnimation = new VideoIntroAnimation();
+      }
+      videoAnimation.play();
+      updateStatus('播放中...');
+    }
+    
+    function stopVideo() {
+      if (videoAnimation) {
+        videoAnimation.stop();
+        updateStatus('已停止');
+      }
+    }
+    
+    function resetVideo() {
+      if (videoAnimation) {
+        videoAnimation.stop();
+        setTimeout(() => {
+          playVideo();
+        }, 100);
+      }
+    }
+    
+    // 监听视频事件
+    document.addEventListener('DOMContentLoaded', () => {
+      const video = document.getElementById('intro-video');
+      
+      if (video) {
+        video.addEventListener('timeupdate', () => {
+          updateProgress(video.currentTime, video.duration);
+        });
+        
+        video.addEventListener('loadedmetadata', () => {
+          updateStatus('视频已加载');
+        });
+        
+        video.addEventListener('canplay', () => {
+          updateStatus('视频可以播放');
+        });
+        
+        video.addEventListener('ended', () => {
+          updateStatus('播放结束');
+        });
+        
+        video.addEventListener('error', (e) => {
+          updateStatus('加载错误: ' + e.message);
+        });
+      }
+    });
+    
+    window.addEventListener('load', () => {
+      updateStatus('页面加载完成');
+    });
+  </script>
+</body>
+</html>

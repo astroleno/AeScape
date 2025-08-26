@@ -42,7 +42,7 @@
 
     #weather-ball {
       border-radius: 50%;
-      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+      /* box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3); */
     }
 
     .controls {
@@ -127,7 +127,7 @@
     <h1>天气球测试</h1>
     
     <div class="weather-ball-container">
-      <canvas id="weather-ball" width="400" height="400"></canvas>
+      <canvas id="weather-ball" width="800" height="800"></canvas>
     </div>
 
     <div class="controls">
@@ -285,10 +285,10 @@
     const oldCanvas = canvas;
     const newCanvas = document.createElement('canvas');
     newCanvas.id = 'weather-ball';
-    newCanvas.width = 400;
-    newCanvas.height = 400;
+    newCanvas.width = 800;
+    newCanvas.height = 800;
     newCanvas.style.borderRadius = '50%';
-    newCanvas.style.boxShadow = '0 20px 40px rgba(0, 0, 0, 0.3)';
+    // newCanvas.style.boxShadow = '0 20px 40px rgba(0, 0, 0, 0.3)';
     oldCanvas.parentNode.replaceChild(newCanvas, oldCanvas);
     
     let weatherBall = createWeatherBall(newCanvas, testScenarios.clear);

@@ -1,0 +1,638 @@
+/**
+ * 天景 AeScape - 后台服务
+ * 基于OpenWeatherMap One Call API 3.0
+ * 简洁高效的天气数据服务
+ */
+
+class WeatherBackgroundService {
+  constructor() {
+    this.apiKey = '';
+    this.currentLocation = null;
+    this.currentWeather = null;
+    this.updateInterval = null;
+    
+    // Current Weather API (免费版)
+    this.WEATHER_API_URL = 'https://api.openweathermap.org/data/2.5/weather';
+    this.GEO_API_URL = 'https://api.openweathermap.org/geo/1.0';
+    
+    this.init();
+  }
+
+  async init() {
+    console.log('Weather Background Service initializing...');
+    
+    try {
+      await this.loadStoredData();
+      this.setupMessageHandlers();
+      
+      if (this.apiKey && this.currentLocation) {
+        await this.updateWeatherData();
+        this.setupPeriodicUpdates();
+      }
+      
+      console.log('Weather Background Service initialized');
+    } catch (error) {
+      console.error('Background service initialization failed:', error);
+      this.setupMessageHandlers();
+    }
+  }
+
+  async loadStoredData() {
+    try {
+      const result = await chrome.storage.local.get(['apiKey', 'location', 'weather']);
+      
+      this.apiKey = result.apiKey || '';
+      this.currentLocation = result.location || {
+        lat: 31.2304,
+        lon: 121.4737,
+        name: '上海',
+        country: 'CN'
+      };
+      this.currentWeather = result.weather || null;
+      
+      console.log('Loaded stored data:', {
+        hasApiKey: !!this.apiKey,
+        location: this.currentLocation?.name
+      });
+    } catch (error) {
+      console.error('Failed to load stored data:', error);
+      // 设置默认位置
+      this.currentLocation = {
+        lat: 31.2304,
+        lon: 121.4737,
+        name: '上海',
+        country: 'CN'
+      };
+    }
+  }
+
+  setupMessageHandlers() {
+    // 移除之前的监听器以避免重复
+    if (chrome.runtime.onMessage.hasListeners()) {
+      chrome.runtime.onMessage.removeListener(this.handleMessage);
+    }
+    
+    chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+      // 使用箭头函数确保正确的this绑定
+      this.handleMessageAsync(message, sender, sendResponse);
+      return true; // 保持消息通道开放，支持异步响应
+    });
+  }
+
+  async handleMessageAsync(message, sender, sendResponse) {
+    try {
+      const result = await this.handleMessage(message, sender);
+      sendResponse(result);
+    } catch (error) {
+      console.error('Message handling error:', error);
+      sendResponse({ 
+        success: false, 
+        error: error.message 
+      });
+    }
+  }
+
+  async handleMessage(message, sender) {
+    switch (message.type) {
+      case 'api.checkStatus':
+        return { 
+          success: true, 
+          hasApiKey: !!this.apiKey 
+        };
+
+      case 'api.setKey':
+        await this.setApiKey(message.apiKey);
+        return { success: true, message: 'API Key保存成功' };
+
+      case 'api.testKey':
+        return await this.testApiKey(message.apiKey || this.apiKey);
+
+      case 'weather.getCurrent':
+        return { 
+          success: true, 
+          data: this.currentWeather 
+        };
+
+      case 'weather.forceUpdate':
+        const weather = await this.updateWeatherData();
+        return { 
+          success: true, 
+          data: weather 
+        };
+
+      case 'location.getCurrent':
+        return { 
+          success: true, 
+          data: this.currentLocation 
+        };
+
+      case 'location.setByName':
+        const locationByName = await this.setLocationByName(message.cityName);
+        return { 
+          success: true, 
+          location: locationByName 
+        };
+
+      case 'location.setCoordinates':
+        const locationByCoords = await this.setLocationByCoordinates(
+          message.lat, 
+          message.lon, 
+          message.name
+        );
+        return { 
+          success: true, 
+          location: locationByCoords 
+        };
+
+      case 'location.searchCities':
+        const cities = await this.searchCities(message.query);
+        return { 
+          success: true, 
+          cities: cities 
+        };
+
+      default:
+        return { 
+          success: false, 
+          error: 'Unknown message type' 
+        };
+    }
+  }
+
+  async testApiKey(apiKey) {
+    if (!apiKey) {
+      return { success: false, error: 'API Key未提供' };
+    }
+
+    try {
+      console.log('Testing API Key using Current Weather API...');
+      
+      // 使用北京的坐标测试免费版API
+      const testLat = 39.9042;
+      const testLon = 116.4074;
+      
+      const url = `${this.WEATHER_API_URL}?lat=${testLat}&lon=${testLon}&appid=${apiKey}&units=metric&lang=zh_cn`;
+      
+      const response = await fetch(url);
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
+        
+        if (response.status === 401) {
+          return { success: false, error: 'API Key无效或未授权' };
+        } else if (response.status === 429) {
+          return { success: false, error: 'API调用次数超限，请稍后重试' };
+        } else {
+          return { success: false, error: `API测试失败: ${errorData.message}` };
+        }
+      }
+
+      const data = await response.json();
+      
+      return { 
+        success: true, 
+        message: 'API Key验证成功！',
+        testData: {
+          location: data.name || '北京',
+          temperature: Math.round(data.main.temp),
+          description: data.weather[0].description
+        }
+      };
+
+    } catch (error) {
+      console.error('Failed to test API key:', error);
+      return { success: false, error: '网络连接失败，请检查网络后重试' };
+    }
+  }
+
+  async setApiKey(apiKey) {
+    if (!apiKey || typeof apiKey !== 'string') {
+      throw new Error('Invalid API key');
+    }
+
+    this.apiKey = apiKey.trim();
+    await chrome.storage.local.set({ apiKey: this.apiKey });
+    
+    // 验证API Key并获取天气数据
+    if (this.currentLocation) {
+      await this.updateWeatherData();
+      this.setupPeriodicUpdates();
+    }
+    
+    console.log('API key updated and validated');
+  }
+
+  async updateWeatherData() {
+    if (!this.apiKey || !this.currentLocation) {
+      console.log('Missing API key or location');
+      return null;
+    }
+
+    try {
+      console.log('Updating weather data using Current Weather API for:', this.currentLocation.name);
+      
+      const weatherData = await this.fetchCurrentWeatherData(
+        this.currentLocation.lat,
+        this.currentLocation.lon
+      );
+      
+      this.currentWeather = {
+        location: this.currentLocation,
+        weather: {
+          code: this.mapWeatherCode(weatherData.weather[0].id),
+          description: weatherData.weather[0].description,
+          humidity: weatherData.main.humidity,
+          windSpeedMps: weatherData.wind?.speed || 0,
+          windDirection: weatherData.wind?.deg || 0,
+          visibilityKm: (weatherData.visibility || 10000) / 1000,
+          pressure: weatherData.main.pressure,
+          uvIndex: 0 // Current Weather API 不提供UV指数
+        },
+        env: {
+          temperature: Math.round(weatherData.main.temp),
+          feelsLike: Math.round(weatherData.main.feels_like),
+          isNight: this.isNightTime(weatherData.dt, weatherData.sys.sunrise, weatherData.sys.sunset)
+        },
+        timestamp: Date.now()
+      };
+
+      await chrome.storage.local.set({ 
+        weather: this.currentWeather,
+        lastUpdate: this.currentWeather.timestamp
+      });
+
+      console.log('Weather data updated successfully using Current Weather API');
+      return this.currentWeather;
+      
+    } catch (error) {
+      console.error('Failed to update weather data:', error);
+      throw error;
+    }
+  }
+
+  async fetchCurrentWeatherData(lat, lon) {
+    if (!this.apiKey) {
+      throw new Error('API key not configured');
+    }
+
+    const url = new URL(this.WEATHER_API_URL);
+    url.searchParams.set('lat', lat.toFixed(4));
+    url.searchParams.set('lon', lon.toFixed(4));
+    url.searchParams.set('appid', this.apiKey);
+    url.searchParams.set('units', 'metric');
+    url.searchParams.set('lang', 'zh_cn');
+
+    const response = await fetch(url.toString());
+    
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'Unknown error' }));
+      throw new Error(`Current Weather API error: ${error.message || 'Unknown error'}`);
+    }
+
+    return await response.json();
+  }
+
+  mapWeatherCode(openWeatherCode) {
+    if (openWeatherCode >= 200 && openWeatherCode < 300) return 'thunderstorm';
+    if (openWeatherCode >= 300 && openWeatherCode < 600) return 'rain';
+    if (openWeatherCode >= 600 && openWeatherCode < 700) return 'snow';
+    if (openWeatherCode >= 700 && openWeatherCode < 800) return 'fog';
+    if (openWeatherCode === 800) return 'clear';
+    if (openWeatherCode > 800) return 'cloudy';
+    return 'clear';
+  }
+
+  isNightTime(currentTime, sunrise, sunset) {
+    // currentTime, sunrise, sunset 都是UNIX时间戳
+    return currentTime < sunrise || currentTime > sunset;
+  }
+
+  async setLocationByName(cityName) {
+    if (!cityName) {
+      throw new Error('City name is required');
+    }
+
+    const cities = await this.geocodeLocation(cityName);
+    if (cities.length === 0) {
+      throw new Error('City not found');
+    }
+
+    const city = cities[0];
+    return await this.setLocationByCoordinates(city.lat, city.lon, city.name);
+  }
+
+  async setLocationByCoordinates(lat, lon, name) {
+    if (typeof lat !== 'number' || typeof lon !== 'number') {
+      throw new Error('Invalid coordinates');
+    }
+
+    this.currentLocation = {
+      lat: lat,
+      lon: lon,
+      name: name || '未知位置',
+      country: ''
+    };
+
+    await chrome.storage.local.set({ location: this.currentLocation });
+    
+    if (this.apiKey) {
+      await this.updateWeatherData();
+    }
+
+    console.log('Location updated:', this.currentLocation);
+    return this.currentLocation;
+  }
+
+  async geocodeLocation(cityName) {
+    if (!this.apiKey) {
+      throw new Error('API key not configured');
+    }
+
+    const url = new URL(`${this.GEO_API_URL}/direct`);
+    url.searchParams.set('q', cityName);
+    url.searchParams.set('limit', '5');
+    url.searchParams.set('appid', this.apiKey);
+
+    const response = await fetch(url.toString());
+    
+    if (!response.ok) {
+      throw new Error('Geocoding failed');
+    }
+
+    const results = await response.json();
+    
+    return results.map(result => ({
+      name: result.name,
+      lat: result.lat,
+      lon: result.lon,
+      country: result.country,
+      state: result.state || ''
+    }));
+  }
+
+  async searchCities(query) {
+    if (!query || query.length < 2) {
+      return [];
+    }
+
+    try {
+      return await this.geocodeLocation(query);
+    } catch (error) {
+      console.error('Failed to search cities:', error);
+      return [];
+    }
+  }
+
+  setupPeriodicUpdates() {
+    if (this.updateInterval) {
+      clearInterval(this.updateInterval);
+    }
+
+    this.updateInterval = setInterval(async () => {
+      if (this.apiKey && this.currentLocation) {
+        try {
+          await this.updateWeatherData();
+        } catch (error) {
+          console.error('Periodic update failed:', error);
+        }
+      }
+    }, 30 * 60 * 1000); // 30分钟
+
+    console.log('Periodic weather updates enabled (30 minutes interval)');
+  }
+}
+
+// 创建服务实例
+const weatherService = new WeatherBackgroundService();
+
+// 扩展安装处理
+chrome.runtime.onInstalled.addListener((details) => {
+  if (details.reason === 'install') {
+    console.log('AeScape extension installed');
+  } else if (details.reason === 'update') {
+    console.log('AeScape extension updated');
+  }
+});
+
+/**
+ * 轻量级主题系统 - 用于Background Service
+ * 不依赖DOM，只提供主题数据计算
+ */
+class BackgroundThemeSystem {
+  constructor() {
+    this.transitionDuration = 800;
+    this.THEME_MAP = this.initThemeMap();
+  }
+
+  /**
+   * 初始化主题映射表（从theme-system.js复制核心部分）
+   */
+  initThemeMap() {
+    return {
+      // 晴天系列
+      'clear-dawn': {
+        primary: 'rgba(255, 183, 77, 0.6)',
+        secondary: 'rgba(255, 138, 101, 0.4)',
+        accent: 'rgba(255, 204, 128, 0.3)',
+        gradient: 'linear-gradient(135deg, rgba(255, 183, 77, 0.15) 0%, rgba(255, 138, 101, 0.1) 100%)',
+        text: 'rgba(33, 33, 33, 0.9)'
+      },
+      'clear-morning': {
+        primary: 'rgba(66, 165, 245, 0.5)',
+        secondary: 'rgba(102, 187, 106, 0.4)',
+        accent: 'rgba(38, 198, 218, 0.3)',
+        gradient: 'linear-gradient(135deg, rgba(66, 165, 245, 0.12) 0%, rgba(102, 187, 106, 0.08) 100%)',
+        text: 'rgba(33, 33, 33, 0.9)'
+      },
+      'clear-noon': {
+        primary: 'rgba(255, 167, 38, 0.5)',
+        secondary: 'rgba(66, 165, 245, 0.4)',
+        accent: 'rgba(102, 187, 106, 0.3)',
+        gradient: 'linear-gradient(135deg, rgba(255, 167, 38, 0.12) 0%, rgba(66, 165, 245, 0.08) 100%)',
+        text: 'rgba(33, 33, 33, 0.9)'
+      },
+      'clear-afternoon': {
+        primary: 'rgba(255, 138, 101, 0.5)',
+        secondary: 'rgba(255, 171, 64, 0.4)',
+        accent: 'rgba(255, 213, 79, 0.3)',
+        gradient: 'linear-gradient(135deg, rgba(255, 138, 101, 0.12) 0%, rgba(255, 171, 64, 0.08) 100%)',
+        text: 'rgba(33, 33, 33, 0.9)'
+      },
+      'clear-sunset': {
+        primary: 'rgba(239, 108, 0, 0.5)',
+        secondary: 'rgba(255, 61, 0, 0.4)',
+        accent: 'rgba(255, 179, 0, 0.3)',
+        gradient: 'linear-gradient(135deg, rgba(239, 108, 0, 0.15) 0%, rgba(255, 61, 0, 0.1) 100%)',
+        text: 'rgba(255, 255, 255, 0.95)'
+      },
+      'clear-evening': {
+        primary: 'rgba(103, 58, 183, 0.6)',
+        secondary: 'rgba(156, 39, 176, 0.45)',
+        accent: 'rgba(233, 30, 99, 0.35)',
+        gradient: 'linear-gradient(135deg, rgba(103, 58, 183, 0.15) 0%, rgba(156, 39, 176, 0.1) 100%)',
+        text: 'rgba(255, 255, 255, 0.95)'
+      },
+      'clear-night': {
+        primary: 'rgb(31, 40, 91)',
+        secondary: 'rgb(46, 54, 96)',
+        accent: 'rgb(63, 73, 101)',
+        gradient: 'linear-gradient(135deg, rgb(31, 40, 91) 0%, rgb(46, 54, 96) 100%)',
+        text: 'rgba(255, 255, 255, 0.98)'
+      },
+
+      // 雷暴系列 - 深沉紫调（已修复字体颜色）
+      'thunderstorm-dawn': {
+        primary: 'rgba(74, 20, 140, 0.4)',
+        secondary: 'rgba(106, 27, 154, 0.3)',
+        accent: 'rgba(142, 36, 170, 0.25)',
+        gradient: 'linear-gradient(135deg, rgba(74, 20, 140, 0.15) 0%, rgba(106, 27, 154, 0.1) 100%)',
+        text: 'rgba(33, 33, 33, 0.9)'
+      },
+      'thunderstorm-morning': {
+        primary: 'rgba(74, 20, 140, 0.4)',
+        secondary: 'rgba(106, 27, 154, 0.3)',
+        accent: 'rgba(142, 36, 170, 0.25)',
+        gradient: 'linear-gradient(135deg, rgba(74, 20, 140, 0.15) 0%, rgba(106, 27, 154, 0.1) 100%)',
+        text: 'rgba(33, 33, 33, 0.9)'
+      },
+      'thunderstorm-noon': {
+        primary: 'rgba(55, 71, 79, 0.4)',
+        secondary: 'rgba(74, 20, 140, 0.3)',
+        accent: 'rgba(106, 27, 154, 0.25)',
+        gradient: 'linear-gradient(135deg, rgba(55, 71, 79, 0.15) 0%, rgba(74, 20, 140, 0.1) 100%)',
+        text: 'rgba(33, 33, 33, 0.9)'
+      },
+      'thunderstorm-afternoon': {
+        primary: 'rgba(38, 50, 56, 0.4)',
+        secondary: 'rgba(55, 71, 79, 0.3)',
+        accent: 'rgba(74, 20, 140, 0.25)',
+        gradient: 'linear-gradient(135deg, rgba(38, 50, 56, 0.15) 0%, rgba(55, 71, 79, 0.1) 100%)',
+        text: 'rgba(33, 33, 33, 0.9)'
+      },
+      'thunderstorm-sunset': {
+        primary: 'rgba(74, 20, 140, 0.4)',
+        secondary: 'rgba(239, 108, 0, 0.2)',
+        accent: 'rgba(255, 61, 0, 0.15)',
+        gradient: 'linear-gradient(135deg, rgba(74, 20, 140, 0.15) 0%, rgba(239, 108, 0, 0.08) 100%)',
+        text: 'rgba(255, 255, 255, 0.95)'
+      },
+      'thunderstorm-evening': {
+        primary: 'rgba(26, 35, 126, 0.4)',
+        secondary: 'rgba(38, 50, 56, 0.3)',
+        accent: 'rgba(55, 71, 79, 0.25)',
+        gradient: 'linear-gradient(135deg, rgba(26, 35, 126, 0.15) 0%, rgba(38, 50, 56, 0.1) 100%)',
+        text: 'rgba(255, 255, 255, 0.95)'
+      },
+      'thunderstorm-night': {
+        primary: 'rgb(13, 20, 33)',
+        secondary: 'rgb(26, 35, 126)',
+        accent: 'rgb(38, 50, 56)',
+        gradient: 'linear-gradient(135deg, rgb(7, 10, 17) 0%, rgb(13, 18, 63) 100%)',
+        text: 'rgba(255, 255, 255, 0.98)'
+      }
+
+      // 注：这里只添加了部分主题，完整版本在theme-system.js中
+    };
+  }
+
+  /**
+   * 获取时间段
+   */
+  getTimeSlot(hour, isNight = null, sunTimes = null) {
+    if (sunTimes) {
+      const sunrise = this.parseTime(sunTimes.sunrise);
+      const sunset = this.parseTime(sunTimes.sunset);
+      
+      if (hour >= sunrise - 1 && hour < sunrise + 1) return 'dawn';
+      if (hour >= sunrise + 1 && hour < 11) return 'morning';
+      if (hour >= 11 && hour < 14) return 'noon';
+      if (hour >= 14 && hour < sunset - 1) return 'afternoon';
+      if (hour >= sunset - 1 && hour <= sunset + 1) return 'sunset';
+      if (hour > sunset + 1 && hour < 22) return 'evening';
+      return 'night';
+    }
+    
+    if (isNight === null) {
+      isNight = hour < 6 || hour > 19;
+    }
+    
+    if (hour >= 5 && hour < 7) return 'dawn';
+    if (hour >= 7 && hour < 11) return 'morning';
+    if (hour >= 11 && hour < 14) return 'noon';
+    if (hour >= 14 && hour < 17) return 'afternoon';
+    if (hour >= 17 && hour < 19) return 'sunset';
+    if (hour >= 19 && hour < 22) return 'evening';
+    return 'night';
+  }
+
+  parseTime(timeString) {
+    const [hours] = timeString.split(':');
+    return parseInt(hours);
+  }
+
+  /**
+   * 获取主题数据
+   */
+  getTheme(weatherCode, hour, isNight = null, sunTimes = null) {
+    const timeSlot = this.getTimeSlot(hour, isNight, sunTimes);
+    const themeKey = `${weatherCode}-${timeSlot}`;
+    
+    return this.THEME_MAP[themeKey] || this.THEME_MAP['clear-noon'];
+  }
+
+  /**
+   * 计算完整主题数据
+   */
+  calculateThemeData(weatherData, location) {
+    if (!weatherData) return null;
+    
+    const hour = new Date().getHours();
+    const weatherCode = weatherData.weather?.code || 'clear';
+    const isNight = weatherData.env?.isNight || false;
+    
+    // 获取日出日落时间
+    let sunTimes = null;
+    if (location?.lat && location?.lng) {
+      // 简化的日出日落计算（实际项目中可能需要更精确的算法）
+      const sunrise = 6; // 简化为固定时间
+      const sunset = 18;
+      sunTimes = { sunrise: `${sunrise}:00`, sunset: `${sunset}:00` };
+    }
+    
+    const theme = this.getTheme(weatherCode, hour, isNight, sunTimes);
+    const timeSlot = this.getTimeSlot(hour, isNight, sunTimes);
+    
+    return {
+      weatherCode,
+      hour,
+      isNight,
+      timeSlot,
+      theme,
+      sunTimes
+    };
+  }
+}
+
+// 添加主题系统到背景服务
+weatherService.themeSystem = new BackgroundThemeSystem();
+
+// 扩展消息处理器，添加主题数据请求
+const originalSetupMessageHandlers = weatherService.setupMessageHandlers.bind(weatherService);
+weatherService.setupMessageHandlers = function() {
+  originalSetupMessageHandlers();
+  
+  // 添加主题数据请求处理
+  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message.type === 'theme.getCurrent') {
+      const themeData = this.themeSystem.calculateThemeData(this.currentWeather, this.currentLocation);
+      sendResponse({ 
+        success: true, 
+        data: themeData 
+      });
+      return true;
+    }
+  });
+};
+
+// 导出用于调试
+self.weatherService = weatherService;

@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chrome扩展模拟 - 天景 AeScape</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: linear-gradient(135deg, #74b9ff 0%, #0984e3 50%, #00cec9 100%);
+      color: white;
+      min-height: 100vh;
+      overflow: hidden;
+    }
+
+    /* 背景界面层 */
+    .background-layer {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .main-content {
+      text-align: center;
+      z-index: 2;
+    }
+
+    .logo {
+      font-size: 72px;
+      margin-bottom: 20px;
+    }
+
+    .title {
+      font-size: 48px;
+      font-weight: bold;
+      margin-bottom: 10px;
+    }
+
+    .subtitle {
+      font-size: 24px;
+      opacity: 0.8;
+      margin-bottom: 40px;
+    }
+
+    .time-display {
+      font-size: 36px;
+      font-weight: 300;
+      margin-bottom: 20px;
+    }
+
+    .date-display {
+      font-size: 18px;
+      opacity: 0.7;
+    }
+
+    /* 视频层 */
+    .intro-video-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1000;
+      background: #000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 1;
+      transition: all 0.4s ease-out;
+      pointer-events: none;
+    }
+
+    .intro-video-container.video-ready {
+      background: transparent;
+      transition: background 0.1s ease-out;
+    }
+
+    .intro-video-container.fade-out {
+      opacity: 0;
+    }
+
+    .intro-video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: center;
+      mix-blend-mode: normal;
+      pointer-events: none;
+    }
+
+    /* 控制面板 */
+    .control-panel {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: rgba(0, 0, 0, 0.3);
+      backdrop-filter: blur(10px);
+      border-radius: 12px;
+      padding: 15px;
+      z-index: 2000;
+    }
+
+    .control-panel h3 {
+      margin: 0 0 10px 0;
+      font-size: 14px;
+      opacity: 0.8;
+    }
+
+    .controls {
+      display: flex;
+      gap: 8px;
+    }
+
+    button {
+      background: rgba(255, 255, 255, 0.2);
+      color: white;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 12px;
+      transition: all 0.3s ease;
+      padding: 8px 12px;
+    }
+
+    button:hover {
+      background: rgba(255, 255, 255, 0.3);
+    }
+
+    .status {
+      margin-top: 10px;
+      font-size: 12px;
+      opacity: 0.7;
+    }
+  </style>
+</head>
+<body>
+  <!-- 背景界面层 -->
+  <div class="background-layer">
+    <div class="main-content">
+      <div class="logo">🌤️</div>
+      <div class="title">天景 AeScape</div>
+      <div class="subtitle">新一代浏览器新标签页</div>
+      <div class="time-display" id="time-display">--:--</div>
+      <div class="date-display" id="date-display">----年--月--日</div>
+    </div>
+  </div>
+
+  <!-- 开幕视频层 -->
+  <div class="intro-video-container" id="intro-video-container">
+    <video class="intro-video" id="intro-video" muted playsinline>
+      <source src="../video/M01522_2s_2K.webm" type="video/webm">
+    </video>
+  </div>
+
+  <!-- 控制面板 -->
+  <div class="control-panel">
+    <h3>🎬 视频控制</h3>
+    <div class="controls">
+      <button onclick="playVideo()">播放</button>
+      <button onclick="stopVideo()">停止</button>
+      <button onclick="resetVideo()">重置</button>
+    </div>
+    <div class="status" id="status">准备就绪</div>
+  </div>
+
+  <script src="../js/video-intro.js"></script>
+  <script>
+    let videoAnimation = null;
+
+    function updateStatus(message) {
+      document.getElementById('status').textContent = message;
+    }
+
+    function updateTime() {
+      const now = new Date();
+      const timeString = now.toLocaleTimeString('zh-CN', {
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+      const dateString = now.toLocaleDateString('zh-CN', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+      
+      document.getElementById('time-display').textContent = timeString;
+      document.getElementById('date-display').textContent = dateString;
+    }
+
+    function playVideo() {
+      if (!videoAnimation) {
+        videoAnimation = new VideoIntroAnimation();
+      }
+      videoAnimation.play();
+      updateStatus('播放中...');
+    }
+
+    function stopVideo() {
+      if (videoAnimation) {
+        videoAnimation.stop();
+        updateStatus('已停止');
+      }
+    }
+
+    function resetVideo() {
+      if (videoAnimation) {
+        videoAnimation.stop();
+        setTimeout(() => {
+          playVideo();
+        }, 100);
+      }
+    }
+
+    // 初始化时间显示
+    updateTime();
+    setInterval(updateTime, 1000);
+
+    // 页面加载完成后自动播放一次
+    window.addEventListener('load', () => {
+      updateStatus('页面加载完成，3秒后自动播放...');
+      setTimeout(() => {
+        playVideo();
+      }, 3000);
+    });
+
+    // 监听视频事件
+    document.addEventListener('DOMContentLoaded', () => {
+      const video = document.getElementById('intro-video');
+      
+      if (video) {
+        video.addEventListener('ended', () => {
+          updateStatus('播放结束，显示主界面');
+        });
+        
+        video.addEventListener('error', (e) => {
+          updateStatus('加载错误: ' + e.message);
+        });
+      }
+    });
+  </script>
+</body>
+</html>

@@ -24,9 +24,9 @@ export class LightingSystem {
     // 主要太阳光 - 极强光照产生明显效果
     this.lights.sun = new THREE.DirectionalLight(0xffffff, 5.0);
     this.lights.sun.position.set(2, 3, 1);
-    this.lights.sun.castShadow = true;
-    this.lights.sun.shadow.mapSize.width = 2048;
-    this.lights.sun.shadow.mapSize.height = 2048;
+    this.lights.sun.castShadow = false; // 暂时禁用阴影
+    // this.lights.sun.shadow.mapSize.width = 2048;
+    // this.lights.sun.shadow.mapSize.height = 2048;
     this.scene.add(this.lights.sun);
 
     // 补充光源 - 模拟天空散射
@@ -41,9 +41,9 @@ export class LightingSystem {
 
     // 月光
     this.lights.moon = new THREE.DirectionalLight(0x7b68ee, 0.8);
-    this.lights.moon.castShadow = true;
-    this.lights.moon.shadow.mapSize.width = 2048;
-    this.lights.moon.shadow.mapSize.height = 2048;
+    this.lights.moon.castShadow = false; // 暂时禁用阴影
+    // this.lights.moon.shadow.mapSize.width = 2048;
+    // this.lights.moon.shadow.mapSize.height = 2048;
     this.scene.add(this.lights.moon);
 
     // 环境光 - 增加强度确保可见性

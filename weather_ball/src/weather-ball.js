@@ -12,6 +12,7 @@ import { ParticleSystem } from './systems/particle-system.js';
 import { WeatherAnimationSystem } from './systems/weather-animation-system.js';
 // import { PostProcessingSystem } from './systems/post-processing-system.js'; // 暂时禁用
 import { createSkyGradient } from './utils/sky-gradient.js';
+import { createTrueFresnelGlassMaterial, createVolumeCloudMaterial } from './utils/shader-loader.js';
 
 export class WeatherBall {
   constructor(canvas, params = {}) {
@@ -84,7 +85,7 @@ export class WeatherBall {
       
       // 渲染设置
       render: {
-        size: 400,
+        size: 600,
         quality: 'high',
         ...params.render
       }
@@ -129,8 +130,15 @@ export class WeatherBall {
       console.log('Fallback: Created new canvas');
     }
     
-    this.renderer.setSize(this.params.render.size, this.params.render.size);
+    // 强制设置大尺寸确保可见性
+    const targetSize = 800; // 更大的尺寸确保清晰可见
+    this.renderer.setSize(targetSize, targetSize);
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    
+    // 同时设置canvas的CSS样式
+    this.canvas.style.width = targetSize + 'px';
+    this.canvas.style.height = targetSize + 'px';
+    this.params.render.size = targetSize;
     
     // 启用物理正确的光照
     this.renderer.physicallyCorrectLights = true;
@@ -139,9 +147,9 @@ export class WeatherBall {
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.0;
     
-    // 阴影设置
-    this.renderer.shadowMap.enabled = true;
-    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    // 阴影设置（暂时禁用以排除外圈阴影问题）
+    this.renderer.shadowMap.enabled = false;
+    // this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     
     // 输出编码
     this.renderer.outputEncoding = THREE.sRGBEncoding;
@@ -188,16 +196,19 @@ export class WeatherBall {
     console.log('Camera position:', this.camera.position);
     console.log('Camera looking at origin');
     
-    // 添加基础环境光和方向光
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+    // 添加基础环境光
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
     this.scene.add(ambientLight);
     
-    // 添加方向光增强反射可见性
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 1.0);
-    directionalLight.position.set(5, 5, 5);
-    this.scene.add(directionalLight);
+    // 主要方向光
+    const mainLight = new THREE.DirectionalLight(0xffffff, 1.2);
+    mainLight.position.set(5, 5, 5);
+    this.scene.add(mainLight);
     
-    console.log('Added enhanced lighting for better material visibility');
+    // 边缘高光专用环形光源
+    this.createRimLights();
+    
+    console.log('Added enhanced lighting system with rim lights');
     
     // 创建基础球体
     this.createBaseSphere();
@@ -210,78 +221,267 @@ export class WeatherBall {
   }
 
   /**
-   * 创建基础球体
+   * 创建双层球体结构
    */
   createBaseSphere() {
-    const geometry = new THREE.SphereGeometry(1, 32, 16); // 减少顶点数用于调试
-    console.log('Sphere geometry created - vertices:', geometry.attributes.position.count);
+    // 创建高质量球体几何体
+    const outerGeometry = new THREE.SphereGeometry(1, 64, 64);
+    const innerGeometry = new THREE.SphereGeometry(0.95, 64, 64); // 稍小避免z-fighting
     
-    // 创建玻璃球材质
-    this.createGlassMaterial();
+    console.log('Double-layer sphere geometry created');
     
-    this.sphere = new THREE.Mesh(geometry, this.glassMaterial);
-    this.sphere.castShadow = false; // 暂时禁用阴影
-    this.sphere.receiveShadow = false;
-    this.sphere.position.set(0, 0, 0); // 明确设置位置
-    this.scene.add(this.sphere);
+    // 创建双层材质
+    this.createDualLayerMaterials();
     
-    console.log('Sphere created with material:', this.glassMaterial.type, 'opacity:', this.glassMaterial.opacity);
-    console.log('Sphere material details:', {
-      transparent: this.glassMaterial.transparent,
-      transmission: this.glassMaterial.transmission,
-      envMap: !!this.glassMaterial.envMap,
-      color: this.glassMaterial.color.getHex().toString(16),
-      emissive: this.glassMaterial.emissive?.getHex().toString(16),
-      wireframe: this.glassMaterial.wireframe
-    });
-    console.log('Sphere position:', this.sphere.position);
-    console.log('Sphere scale:', this.sphere.scale);
-    console.log('Sphere visible:', this.sphere.visible);
+    // 外层：透明玻璃球壳
+    this.outerSphere = new THREE.Mesh(outerGeometry, this.glassMaterial);
+    this.outerSphere.name = 'outer-glass-shell';
+    this.outerSphere.position.set(0, 0, 0);
+    this.scene.add(this.outerSphere);
+    
+    // 内层：天气内容球
+    this.innerSphere = new THREE.Mesh(innerGeometry, this.contentMaterial);
+    this.innerSphere.name = 'inner-weather-content';
+    this.innerSphere.position.set(0, 0, 0);
+    this.scene.add(this.innerSphere);
+    
+    // 保留原sphere引用指向外层（兼容现有代码）
+    this.sphere = this.outerSphere;
+    
+    console.log('Dual-layer sphere structure created:');
+    console.log('- Outer shell (glass):', this.outerSphere.name);
+    console.log('- Inner content:', this.innerSphere.name);
   }
 
   /**
-   * 创建玻璃材质
+   * 创建双层材质系统
    */
-  createGlassMaterial() {
+  createDualLayerMaterials() {
     try {
-      // 尝试创建真正的Three.js Sky HDRI环境
+      // 创建HDRI环境
       this.createProperSkyHDRI();
     } catch (error) {
       console.error('Sky HDRI creation failed, using fallback:', error);
     }
     
-    // 高反射玻璃球材质（增强太阳高光）
+    // 先创建基础材质，稍后替换为自定义着色器
     this.glassMaterial = new THREE.MeshPhysicalMaterial({
-      color: 0xffffff,        // 白色基色
-      metalness: 1.0,         // 最大金属感增强反射
-      roughness: 0.05,        // 极低粗糙度增强锐利反射
-      transparent: true,      // 透明
-      opacity: 0.3,           // 降低不透明度突出反射
-      transmission: 0.7,      // 高透射率
-      thickness: 1.0,         // 厚度
-      ior: 1.5,              // 玻璃折射率
-      clearcoat: 1.0,        // 启用清漆层增强反射
-      clearcoatRoughness: 0.0, // 清漆完全光滑
-      envMapIntensity: 3.0,   // 大幅提高环境反射强度
-      side: THREE.DoubleSide  // 双面渲染
+      color: 0xffffff,
+      metalness: 0.0,
+      roughness: 0.0,
+      transparent: true,
+      opacity: 0.15,
+      transmission: 0.85,
+      thickness: 0.5,
+      ior: 1.52,
+      clearcoat: 1.0,
+      clearcoatRoughness: 0.0,
+      envMapIntensity: 2.0,
+      reflectivity: 1.0,
+      side: THREE.DoubleSide
     });
     
-    // 延迟设置环境贴图，确保scene.environment已设置
-    setTimeout(() => {
-      if (this.scene.environment) {
-        this.glassMaterial.envMap = this.scene.environment;
-        this.glassMaterial.needsUpdate = true;
-        console.log('Environment map applied to glass material');
+    // 内层：体积云层材质
+    this.contentMaterial = createVolumeCloudMaterial({
+      cloudColor: new THREE.Color(this.getWeatherColor()),
+      weatherColor: new THREE.Color(this.getWeatherAccentColor()),
+      cloudDensity: this.getCloudDensity(),
+      swirl: this.getSwirlIntensity(),
+      weather: this.getWeatherIntensity()
+    });
+    
+    // 立即创建简单透明玻璃材质
+    try {
+      // 创建基本透明材质替换灰色球体
+      this.simpleGlassMaterial = new THREE.MeshPhysicalMaterial({
+        color: 0xffffff,
+        metalness: 0.0,
+        roughness: 0.1,
+        transparent: true,
+        opacity: 0.15,
+        transmission: 0.85,
+        thickness: 0.1,
+        ior: 1.5,
+        clearcoat: 1.0,
+        clearcoatRoughness: 0.05,
+        side: THREE.DoubleSide
+      });
+      
+      // 立即应用到外层球体
+      if (this.outerSphere) {
+        this.outerSphere.material = this.simpleGlassMaterial;
+        console.log('Applied simple glass material immediately');
       }
-    }, 100);
+      
+      // 延迟应用高级着色器
+      setTimeout(() => {
+        this.applyAdvancedShader();
+      }, 500);
+      
+    } catch (error) {
+      console.error('Failed to create simple glass material:', error);
+    }
     
-    console.log('PBR glass ball created with proper Sky HDRI');
-    console.log('Material metalness:', this.glassMaterial.metalness);
-    console.log('Material roughness:', this.glassMaterial.roughness);
-    console.log('Material envMapIntensity:', this.glassMaterial.envMapIntensity);
+    console.log('Dual-layer materials created:');
+    console.log('- Glass shell opacity:', this.glassMaterial.opacity);
+    console.log('- Content opacity:', this.contentMaterial.opacity);
+  }
+  
+  /**
+   * 应用高级着色器材质
+   */
+  applyAdvancedShader() {
+    try {
+      // 创建或获取环境贴图
+      let envMap = this.scene.environment;
+      if (!envMap) {
+        // 创建简单的程序化环境贴图
+        envMap = this.createSimpleEnvMap();
+      }
+      
+      // 创建真正的菲涅尔玻璃材质
+      this.trueFresnelGlassMaterial = createTrueFresnelGlassMaterial(envMap, {
+        glassStrength: 1.0,
+        refractionStrength: 1.0,
+        glassColor: new THREE.Color(0xffffff)
+      });
+      
+      // 检查着色器编译
+      console.log('Fresnel material created:', this.trueFresnelGlassMaterial);
+      console.log('Uniforms:', Object.keys(this.trueFresnelGlassMaterial.uniforms));
+      
+      // 监听着色器编译错误
+      this.renderer.domElement.addEventListener('webglcontextlost', (e) => {
+        console.error('WebGL context lost:', e);
+      });
+      
+      // 应用到外层球体
+      if (this.outerSphere) {
+        this.outerSphere.material = this.trueFresnelGlassMaterial;
+        console.log('Applied advanced Fresnel shader material');
+        
+        // 强制渲染一帧检查着色器编译
+        this.renderer.render(this.scene, this.camera);
+        
+        // 检查WebGL错误
+        const gl = this.renderer.getContext();
+        const error = gl.getError();
+        if (error !== gl.NO_ERROR) {
+          console.error('WebGL error after applying shader:', error);
+          // 回退到简单材质
+          this.outerSphere.material = this.simpleGlassMaterial;
+          console.log('Reverted to simple glass material due to shader error');
+        }
+      }
+      
+    } catch (error) {
+      console.warn('Failed to apply advanced shader, keeping simple material:', error);
+    }
+  }
+  
+  /**
+   * 创建简单环境贴图
+   */
+  createSimpleEnvMap() {
+    const size = 64;
+    const data = new Uint8Array(size * size * 4);
     
-    // 暂时移除测试球以简化调试
-    // this.createTestBall();
+    for (let i = 0; i < size * size; i++) {
+      const index = i * 4;
+      // 简单的天蓝色渐变
+      data[index] = 135;     // R
+      data[index + 1] = 206; // G 
+      data[index + 2] = 235; // B
+      data[index + 3] = 255; // A
+    }
+    
+    const texture = new THREE.DataTexture(data, size, size, THREE.RGBAFormat);
+    texture.needsUpdate = true;
+    
+    const cubeRenderTarget = new THREE.WebGLCubeRenderTarget(size);
+    cubeRenderTarget.texture.format = THREE.RGBFormat;
+    
+    return cubeRenderTarget.texture;
+  }
+  
+  /**
+   * 根据天气获取主要云层颜色（参考图优化）
+   */
+  getWeatherColor() {
+    const weatherCode = this.params.weather.code;
+    const colors = {
+      'clear': 0x87CEEB,      // 天蓝色
+      'cloudy': 0xB0C4DE,     // 浅钢蓝
+      'rain': 0xCD853F,       // 秘鲁橙（参考图的暖橙色）
+      'snow': 0xF0F8FF,       // 爱丽丝蓝
+      'fog': 0xD3D3D3,        // 浅灰色
+      'thunderstorm': 0x2F4F4F // 暗岩灰色
+    };
+    return colors[weatherCode] || colors['clear'];
+  }
+  
+  /**
+   * 根据天气获取强调色（漩涡深色部分）
+   */
+  getWeatherAccentColor() {
+    const weatherCode = this.params.weather.code;
+    const colors = {
+      'clear': 0x4169E1,      // 皇家蓝
+      'cloudy': 0x778899,     // 淡板岩灰
+      'rain': 0x8B4513,       // 马鞍棕（参考图的深色部分）
+      'snow': 0xB0C4DE,       // 浅钢蓝
+      'fog': 0xA9A9A9,        // 暗灰色
+      'thunderstorm': 0x191970 // 午夜蓝
+    };
+    return colors[weatherCode] || colors['clear'];
+  }
+  
+  /**
+   * 根据天气获取云层密度
+   */
+  getCloudDensity() {
+    const weatherCode = this.params.weather.code;
+    const densities = {
+      'clear': 0.2,           // 很少云层
+      'cloudy': 0.6,          // 中等云层
+      'rain': 0.8,            // 密集云层
+      'snow': 0.7,            // 较密云层
+      'fog': 0.9,             // 非常密集
+      'thunderstorm': 0.85    // 暴风云
+    };
+    return densities[weatherCode] || 0.5;
+  }
+  
+  /**
+   * 根据天气获取漩涡强度
+   */
+  getSwirlIntensity() {
+    const weatherCode = this.params.weather.code;
+    const intensities = {
+      'clear': 0.5,           // 轻微漩涡
+      'cloudy': 1.0,          // 中等漩涡
+      'rain': 1.5,            // 强烈漩涡
+      'snow': 0.8,            // 缓慢漩涡
+      'fog': 0.3,             // 几乎静止
+      'thunderstorm': 2.0     // 最强烈漩涡
+    };
+    return intensities[weatherCode] || 1.0;
+  }
+  
+  /**
+   * 根据天气获取天气强度
+   */
+  getWeatherIntensity() {
+    const weatherCode = this.params.weather.code;
+    const intensities = {
+      'clear': 0.3,           // 轻微效果
+      'cloudy': 0.6,          // 中等效果
+      'rain': 0.9,            // 强烈效果
+      'snow': 0.7,            // 中强效果
+      'fog': 0.8,             // 强效果
+      'thunderstorm': 1.0     // 最强效果
+    };
+    return intensities[weatherCode] || 0.5;
   }
   
   /**
@@ -414,13 +614,48 @@ export class WeatherBall {
   }
 
   /**
+   * 创建边缘高光环形光源
+   */
+  createRimLights() {
+    this.rimLights = [];
+    const lightCount = 6;
+    const radius = 4;
+    
+    for (let i = 0; i < lightCount; i++) {
+      const angle = (i / lightCount) * Math.PI * 2;
+      
+      // 创建点光源
+      const light = new THREE.PointLight(0xffffff, 0.8, 10);
+      light.position.set(
+        Math.cos(angle) * radius,
+        Math.sin(angle) * radius * 0.3, // 稍微压扁以形成环形
+        Math.sin(angle) * radius
+      );
+      
+      this.scene.add(light);
+      this.rimLights.push(light);
+    }
+    
+    // 添加一个顶部强光源
+    const topLight = new THREE.PointLight(0xffffff, 1.5, 8);
+    topLight.position.set(0, 3, 2);
+    this.scene.add(topLight);
+    this.rimLights.push(topLight);
+    
+    console.log(`Created ${this.rimLights.length} rim lights for edge enhancement`);
+  }
+
+  /**
    * 设置双层背景系统
    */
   setSkyBackground() {
-    // 透明场景背景，让HTML渐变显示
+    // 完全透明场景背景，让HTML蓝色背景透过玻璃显示（匹配参考图）
     this.scene.background = null;
-    console.log('Scene background set to transparent - HTML gradient visible');
-    // 注意：环境贴图现在由createProperSkyHDRI()中的bakeEnvironmentFromSky()设置
+    
+    // 设置渲染器透明
+    this.renderer.setClearColor(0x000000, 0); // 完全透明
+    
+    console.log('Scene background set to fully transparent - HTML background shows through glass');
   }
   
   /**
@@ -434,13 +669,13 @@ export class WeatherBall {
       this.sky.scale.setScalar(10000);
       console.log('Sky object created successfully');
       
-          // 2) 设置天空参数（增强太阳可见度）
-    const uniforms = this.sky.material.uniforms;
-    uniforms.turbidity.value = 1.0;      // 降低浑浊度，增强太阳
-    uniforms.rayleigh.value = 2.0;       // 增加瑞利散射
-    uniforms.mieCoefficient.value = 0.008; // 增加Mie散射
-    uniforms.mieDirectionalG.value = 0.8; // 增强太阳方向性
-      console.log('Sky parameters set');
+      // 2) 设置天空参数（优化用于边缘反射）
+      const uniforms = this.sky.material.uniforms;
+      uniforms.turbidity.value = 2.0;      // 适中浑浊度
+      uniforms.rayleigh.value = 1.0;       // 适中瑞利散射  
+      uniforms.mieCoefficient.value = 0.01; // 轻微雾霾
+      uniforms.mieDirectionalG.value = 0.8; // 适中方向性
+      console.log('Sky parameters optimized for edge reflection');
     
     // 3) 设置太阳位置
     this.sun = new THREE.Vector3();
@@ -484,6 +719,12 @@ export class WeatherBall {
       
       // 清理临时场景
       tempScene.remove(this.sky);
+      
+      // 确保Sky不在主场景中
+      if (this.scene.children.includes(this.sky)) {
+        this.scene.remove(this.sky);
+        console.log('Removed Sky from main scene');
+      }
       
       console.log('Environment baked from Sky using PMREM');
       console.log('ENV OK?', !!this.scene.environment, 
@@ -641,31 +882,84 @@ export class WeatherBall {
       }
     });
     
+    // 更新环形光源动画
+    this.updateRimLights();
+    
+    // 更新体积云层着色器时间
+    this.updateVolumeCloudShader();
+    
     // 更新环境贴图（实时反射）
     this.updateEnvironmentMap();
+  }
+  
+  /**
+   * 更新环形光源动画
+   */
+  updateRimLights() {
+    if (!this.rimLights) return;
+    
+    const time = Date.now() * 0.001; // 转换为秒
+    const lightCount = this.rimLights.length - 1; // 排除顶部光源
+    
+    for (let i = 0; i < lightCount; i++) {
+      const light = this.rimLights[i];
+      const baseAngle = (i / lightCount) * Math.PI * 2;
+      const animatedAngle = baseAngle + time * 0.2; // 慢速旋转
+      
+      const radius = 4;
+      light.position.set(
+        Math.cos(animatedAngle) * radius,
+        Math.sin(animatedAngle) * radius * 0.3,
+        Math.sin(animatedAngle) * radius
+      );
+      
+      // 添加光强度变化
+      light.intensity = 0.6 + Math.sin(time * 2 + i) * 0.2;
+    }
+  }
+  
+  /**
+   * 更新体积云层着色器
+   */
+  updateVolumeCloudShader() {
+    if (this.contentMaterial && this.contentMaterial.uniforms) {
+      const time = Date.now() * 0.001;
+      this.contentMaterial.uniforms.time.value = time;
+    }
   }
 
   /**
    * 更新环境贴图
    */
   updateEnvironmentMap() {
-    if (this.cubeCamera && this.sphere) {
-      // 隐藏球体以避免递归反射
-      this.sphere.visible = false;
+    if (this.cubeCamera && (this.outerSphere || this.sphere)) {
+      // 隐藏双层球体以避免递归反射
+      if (this.outerSphere) this.outerSphere.visible = false;
+      if (this.innerSphere) this.innerSphere.visible = false;
       
       // 更新立方体相机位置
-      this.cubeCamera.position.copy(this.sphere.position);
-      
-      // 渲染环境贴图
-      this.cubeCamera.update(this.renderer, this.scene);
+      const position = this.outerSphere?.position || this.sphere?.position;
+      if (position) {
+        this.cubeCamera.position.copy(position);
+        
+        // 渲染环境贴图
+        this.cubeCamera.update(this.renderer, this.scene);
+      }
       
       // 恢复球体可见性
-      this.sphere.visible = true;
+      if (this.outerSphere) this.outerSphere.visible = true;
+      if (this.innerSphere) this.innerSphere.visible = true;
       
-      // 更新材质的环境贴图
+      // 更新所有材质的环境贴图
       if (this.glassMaterial && this.envMap) {
         this.glassMaterial.envMap = this.envMap;
         this.glassMaterial.needsUpdate = true;
+      }
+      
+      // 更新真正的菲涅尔材质的环境贴图
+      if (this.trueFresnelGlassMaterial && this.scene.environment) {
+        this.trueFresnelGlassMaterial.uniforms.envMap.value = this.scene.environment;
+        this.trueFresnelGlassMaterial.needsUpdate = true;
       }
     }
   }
@@ -676,8 +970,18 @@ export class WeatherBall {
   update(newParams) {
     this.params = this.mergeDefaultParams(newParams);
     
-    // 更新太阳位置（如果提供了时间或太阳参数）
-    if (newParams.time || newParams.sun) {
+    // 更新体积云层着色器参数
+    if (this.contentMaterial && this.contentMaterial.uniforms) {
+      this.contentMaterial.uniforms.cloudColor.value.setHex(this.getWeatherColor());
+      this.contentMaterial.uniforms.weatherColor.value.setHex(this.getWeatherAccentColor());
+      this.contentMaterial.uniforms.cloudDensity.value = this.getCloudDensity();
+      this.contentMaterial.uniforms.swirl.value = this.getSwirlIntensity();
+      this.contentMaterial.uniforms.weather.value = this.getWeatherIntensity();
+      this.contentMaterial.needsUpdate = true;
+    }
+    
+    // 更新太阳位置（如果提供了天文或环境参数）
+    if (newParams.astronomical || newParams.environmental) {
       this.updateSunPosition(newParams);
     }
     
@@ -703,12 +1007,16 @@ export class WeatherBall {
   updateSunPosition(params) {
     if (!this.sky) return;
     
-    let elevation = 20;
-    let azimuth = 130;
+    // 从参数中获取太阳位置和时间信息
+    const sunData = params.astronomical?.sun || {};
+    const timeOfDay = params.environmental?.timeOfDay;
     
-    // 根据时间设置太阳位置
-    if (params.time) {
-      switch (params.time) {
+    let elevation = sunData.altitude || 20;
+    let azimuth = sunData.azimuth || 130;
+    
+    // 根据时间段调整太阳位置
+    if (timeOfDay) {
+      switch (timeOfDay) {
         case 'dawn':
           elevation = 5;
           azimuth = 90;
@@ -728,22 +1036,12 @@ export class WeatherBall {
       }
     }
     
-    // 根据太阳位置参数设置
-    if (params.sun) {
-      switch (params.sun) {
-        case 'high':
-          elevation = 80;
-          break;
-        case 'medium':
-          elevation = 45;
-          break;
-        case 'low':
-          elevation = 10;
-          break;
-        case 'below':
-          elevation = -15;
-          break;
-      }
+    // 如果有具体的太阳高度角数据，优先使用
+    if (sunData.altitude !== undefined) {
+      elevation = sunData.altitude;
+    }
+    if (sunData.azimuth !== undefined) {
+      azimuth = sunData.azimuth;
     }
     
     // 更新太阳位置
@@ -756,8 +1054,8 @@ export class WeatherBall {
     
     console.log(`Sun updated: elevation=${elevation}°, azimuth=${azimuth}°`);
     
-    // 重新烘焙环境贴图以反映太阳位置变化
-    setTimeout(() => this.bakeEnvironmentFromSky(), 100);
+    // 立即重新烘焙环境贴图以反映太阳位置变化
+    this.bakeEnvironmentFromSky();
   }
 
   /**
@@ -827,6 +1125,14 @@ export class WeatherBall {
         system.destroy();
       }
     });
+    
+    // 清理双层球体材质
+    if (this.glassMaterial) {
+      this.glassMaterial.dispose();
+    }
+    if (this.contentMaterial) {
+      this.contentMaterial.dispose();
+    }
     
     // 清理PMREM生成器
     if (this.pmremGenerator) {

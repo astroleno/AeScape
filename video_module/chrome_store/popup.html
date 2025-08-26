@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>天景 AeScape</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --theme-gradient: linear-gradient(135deg, rgba(66, 165, 245, 0.12) 0%, rgba(102, 187, 106, 0.08) 100%);
+      --theme-text: rgba(255, 255, 255, 0.95);
+    }
+
+    body {
+      width: 320px;
+      min-height: 480px;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'PingFang SC', sans-serif;
+      background: var(--theme-gradient);
+      color: var(--theme-text);
+      transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+      font-weight: 300;
+      border: none;
+      border-radius: 16px;
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25), 0 4px 12px rgba(0, 0, 0, 0.15);
+      line-height: 1.5;
+    }
+
+    .header {
+      padding: 24px 20px 16px;
+      text-align: center;
+    }
+
+    .logo {
+      font-size: 1.1rem;
+      font-weight: 500;
+      margin-bottom: 2px;
+      opacity: 0.9;
+    }
+
+    .content {
+      padding: 0 20px 20px;
+    }
+
+    .section {
+      padding: 18px;
+      margin-bottom: 14px;
+    }
+
+    .section-title {
+      font-size: 0.9rem;
+      font-weight: 600;
+      margin-bottom: 12px;
+      opacity: 0.9;
+    }
+
+    .weather-info {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 16px;
+    }
+
+    .weather-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+
+    .settings-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+
+    .icon-button {
+      padding: 8px;
+      border: none;
+      border-radius: 8px;
+      background: rgba(0, 0, 0, 0.06);
+      backdrop-filter: blur(10px);
+      color: inherit;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 36px;
+      height: 36px;
+    }
+
+    .icon-button:hover {
+      background: rgba(0, 0, 0, 0.12);
+      transform: translateY(-1px);
+    }
+
+    .weather-icon {
+      font-size: 2rem;
+    }
+
+    .weather-details {
+      flex: 1;
+    }
+
+    .temperature {
+      font-size: 1.5rem;
+      font-weight: 300;
+      line-height: 1.2;
+      margin-bottom: 4px;
+    }
+
+    .description {
+      font-size: 0.85rem;
+      opacity: 0.85;
+      line-height: 1.4;
+    }
+
+    .location-text {
+      font-size: 0.8rem;
+      opacity: 0.8;
+      margin-bottom: 8px;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      font-size: 0.8rem;
+      line-height: 1.6;
+    }
+
+    .stat-item {
+      display: flex;
+      justify-content: space-between;
+      opacity: 0.9;
+      padding: 2px 0;
+    }
+
+    .button {
+      width: 100%;
+      padding: 12px;
+      border: none;
+      border-radius: 12px;
+      background: rgba(0, 0, 0, 0.06);
+      backdrop-filter: blur(10px);
+      color: inherit;
+      font-size: 0.8rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      margin-bottom: 8px;
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .button:hover {
+      background: rgba(0, 0, 0, 0.1);
+      transform: translateY(-1px);
+      border-color: rgba(0, 0, 0, 0.15);
+    }
+
+    .footer {
+      padding: 12px 20px;
+      text-align: center;
+      font-size: 0.7rem;
+      opacity: 0.7;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    /* 开关样式 */
+    .toggle-group {
+      margin-bottom: 12px;
+    }
+
+    .toggle-label {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      padding: 8px 0;
+    }
+
+    .toggle-label input[type="checkbox"] {
+      display: none;
+    }
+
+    .toggle-slider {
+      position: relative;
+      width: 44px;
+      height: 24px;
+      background: rgba(0, 0, 0, 0.15);
+      border-radius: 12px;
+      transition: background 0.3s ease;
+    }
+
+    .toggle-slider:before {
+      content: '';
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 20px;
+      height: 20px;
+      background: rgba(255, 255, 255, 0.9);
+      border-radius: 50%;
+      transition: transform 0.3s ease;
+    }
+
+    .toggle-label input[type="checkbox"]:checked + .toggle-slider {
+      background: rgba(0, 0, 0, 0.25);
+    }
+
+    .toggle-label input[type="checkbox"]:checked + .toggle-slider:before {
+      transform: translateX(20px);
+    }
+
+    .loading {
+      opacity: 0.6;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="logo">天景 AeScape</div>
+  </div>
+
+  <div class="content">
+    <div class="section">
+      <div class="weather-header">
+        <div class="section-title">当前天气</div>
+        <button class="icon-button" id="refresh-btn" title="刷新天气">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="23 4,23 10,17 10"></polyline>
+            <polyline points="1 20,1 14,7 14"></polyline>
+            <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10"></path>
+            <path d="M3.51 15A9 9 0 0 0 18.36 18.36L23 14"></path>
+          </svg>
+        </button>
+      </div>
+      
+      <div class="location-text" id="location-text">获取位置中...</div>
+      
+      <div class="weather-info">
+        <div class="weather-icon" id="weather-icon">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <circle cx="12" cy="12" r="5"></circle>
+            <line x1="12" y1="1" x2="12" y2="3"></line>
+            <line x1="12" y1="21" x2="12" y2="23"></line>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+            <line x1="1" y1="12" x2="3" y2="12"></line>
+            <line x1="21" y1="12" x2="23" y2="12"></line>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+          </svg>
+        </div>
+        <div class="weather-details">
+          <div class="temperature" id="temperature">--°</div>
+          <div class="description" id="weather-description">加载中...</div>
+        </div>
+      </div>
+      
+      <div class="stats">
+        <div class="stat-item">
+          <span>体感</span>
+          <span id="feels-like">--°</span>
+        </div>
+        <div class="stat-item">
+          <span>湿度</span>
+          <span id="humidity">--%</span>
+        </div>
+        <div class="stat-item">
+          <span>风速</span>
+          <span id="wind-speed">--</span>
+        </div>
+        <div class="stat-item">
+          <span>能见度</span>
+          <span id="visibility">--</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="settings-header">
+        <div class="section-title">功能设置</div>
+        <button class="icon-button" id="open-settings" title="扩展设置">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+          </svg>
+        </button>
+      </div>
+      <div class="toggle-group">
+        <label class="toggle-label">
+          <span>悬浮球显示</span>
+          <input type="checkbox" id="floating-ball-toggle" checked>
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+    </div>
+    </div>
+  </div>
+
+  <script src="js/icon-library.js"></script>
+  <script src="js/theme-system.js"></script>
+  <script src="js/popup.js"></script>
+</body>
+</html>

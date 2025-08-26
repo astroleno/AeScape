@@ -17,6 +17,9 @@ class AeScapeNewTab {
     console.log('AeScape NewTab initializing...');
     
     try {
+      // 初始化视频播放（使用独立模块）
+      this.videoAnimation = new VideoIntroAnimation();
+      
       this.initializeTime();
       this.setupEventListeners();
       this.setupQuickLinks();
@@ -105,6 +108,8 @@ class AeScapeNewTab {
       });
     }
   }
+
+  // 视频动画模块已分离到 video-intro.js
 
   // 事件监听器设置
   setupEventListeners() {
