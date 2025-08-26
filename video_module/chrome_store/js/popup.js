@@ -216,15 +216,19 @@ class AeScapePopup {
       await chrome.storage.local.set({ floatingBallEnabled: enabled });
       
       // 通知所有标签页更新悬浮球状态
-      const tabs = await chrome.tabs.query({});
-      tabs.forEach(tab => {
-        chrome.tabs.sendMessage(tab.id, {
-          type: 'floatingBall.toggle',
-          enabled: enabled
-        }).catch(() => {
-          // 忽略无法发送消息的标签页
+      try {
+        const tabs = await chrome.tabs.query({});
+        tabs.forEach(tab => {
+          try {
+            chrome.tabs.sendMessage(tab.id, {
+              type: 'floatingBall.toggle',
+              enabled: enabled
+            }).catch(() => {});
+          } catch (_) {}
         });
-      });
+      } catch (tabsErr) {
+        console.warn('[AeScape] 无法查询tabs，依赖storage.onChanged兜底:', tabsErr);
+      }
     } catch (error) {
       console.error('Failed to toggle floating ball:', error);
     }

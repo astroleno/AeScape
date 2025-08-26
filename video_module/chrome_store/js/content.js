@@ -989,6 +989,27 @@ class AeScapeFloatingBall {
         }
       });
     }
+
+    // 兜底逻辑：监听 storage 变化，确保开关状态变化能即时作用（即使消息丢失）
+    try {
+      if (chrome.storage?.onChanged) {
+        chrome.storage.onChanged.addListener((changes, area) => {
+          if (area === 'local' && changes.floatingBallEnabled) {
+            const enabled = changes.floatingBallEnabled.newValue !== false;
+            console.log('[AeScape] storage事件触发，floatingBallEnabled =', enabled);
+            if (enabled) {
+              if (!this.isVisible) {
+                this.init();
+              }
+            } else {
+              this.destroy();
+            }
+          }
+        });
+      }
+    } catch (err) {
+      console.warn('[AeScape] 注册storage监听失败:', err);
+    }
   }
 
   destroy() {
