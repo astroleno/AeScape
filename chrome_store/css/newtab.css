@@ -13,7 +13,8 @@
   --theme-secondary: rgba(102, 187, 106, 0.08);
   --theme-accent: rgba(38, 198, 218, 0.06);
   --theme-gradient: linear-gradient(135deg, var(--theme-primary) 0%, var(--theme-secondary) 100%);
-  --theme-text: rgba(255, 255, 255, 0.95);
+  /* 默认文本改为深色，确保在未配置API/主题尚未覆盖时拥有可读性 */
+  --theme-text: rgba(33, 33, 33, 0.92);
   
   /* 毛玻璃效果 - 更轻微 */
   --glass-bg: rgba(255, 255, 255, 0.02);
@@ -221,20 +222,61 @@ html, body {
   background: none;
   border: none;
   box-shadow: none;
+  display: grid;              /* 强制所有直接子项居中 */
+  justify-items: center;      /* 包括"当前天气/Shanghai"等块级元素 */
+  row-gap: var(--spacing-lg);
+}
+
+/* 让标题与红框区域共享同一垂直中线 */
+.weather-card > .section-title,
+.weather-card > .location-name,
+.weather-card > .weather-summary {
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* 居中"当前天气"和位置名称 */
+.weather-card .section-title,
+.weather-card .location-name {
+  display: block;
+  text-align: center;
+}
+
+/* 标题样式 */
+.weather-card .section-title {
+  font-size: var(--text-lg);
+  font-weight: 500;
+  opacity: 0.9;
+  margin-bottom: var(--spacing-xs);
+}
+
+/* 位置名称样式 */
+.weather-card .location-name {
+  font-size: var(--text-base);
+  font-weight: 400;
+  opacity: 0.7;
+  margin-bottom: var(--spacing-md);
 }
 
 
 /* 主要天气信息 - 横向布局 */
+.weather-summary {
+  display: grid;
+  justify-items: center; /* 让整块红框区域的几何中心与标题对齐 */
+  width: 100%;
+}
+
 .weather-main {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto auto; /* 两列内容自适应 */
   align-items: center;
-  justify-content: center;
-  gap: var(--spacing-xl);
+  justify-content: center; /* 维持整体居中 */
+  column-gap: var(--spacing-lg);
   margin-bottom: var(--spacing-xl);
 }
 
 .temperature-section {
-  text-align: left;
+  text-align: center; /* 顶部温度与描述统一居中对齐 */
 }
 
 .current-temp {
@@ -383,10 +425,11 @@ html, body {
 /* 悬浮按钮 - 更精致 */
 .floating-actions {
   position: fixed;
-  bottom: var(--spacing-xl);
-  right: var(--spacing-xl);
+  left: 50%; /* 居中对齐 */
+  transform: translateX(-50%);
+  bottom: var(--spacing-lg);
   display: flex;
-  flex-direction: column;
+  flex-direction: row; /* 居中时按钮横向排布，更稳定 */
   gap: var(--spacing-md);
   z-index: 50;
 }
@@ -403,20 +446,40 @@ html, body {
   justify-content: center;
   cursor: pointer;
   transition: all 300ms cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: var(--glass-shadow);
+  box-shadow: var(--glass-shadow),
+    0 0 0 1px color-mix(in srgb, var(--theme-primary) 22%, transparent) inset; /* 主题色内边光 */
   opacity: 0.8;
+  position: relative; /* 为柔光环定位 */
+  color: var(--theme-text);
 }
 
 .action-button:hover {
   background: var(--glass-bg-hover);
   transform: scale(1.05);
-  box-shadow: var(--glass-shadow-hover);
+  box-shadow: var(--glass-shadow-hover),
+    0 0 0 1px color-mix(in srgb, var(--theme-secondary) 30%, transparent) inset,
+    0 0 24px color-mix(in srgb, var(--theme-primary) 22%, transparent); /* 悬浮时主题色发光 */
   opacity: 1;
 }
 
 .action-button:active {
   transform: scale(0.98);
 }
+
+/* 主题色柔光环 */
+.action-button::after {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  border-radius: 999px;
+  pointer-events: none;
+  background: radial-gradient(60% 60% at 50% 50%,
+    color-mix(in srgb, var(--theme-primary) 22%, transparent) 0%,
+    transparent 70%);
+  opacity: 0;
+  transition: opacity 300ms ease;
+}
+.action-button:hover::after { opacity: 1; }
 
 /* 设置面板样式 */
 .settings-panel {

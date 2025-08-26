@@ -50,6 +50,9 @@ class AeScapeFloatingBall {
 
       // 等待主题系统加载
       await this.waitForThemeSystem();
+
+      // 先订阅全局主题（避免错过首次通知），并尝试立即应用一次
+      this.subscribeToGlobalTheme(true);
       
       // 创建悬浮球
       this.createFloatingBall();
@@ -63,7 +66,7 @@ class AeScapeFloatingBall {
       // 设置消息监听
       this.setupMessageListener();
       
-      // 注册全局主题管理器监听器
+      // 注册全局主题管理器监听器（再次兜底检测一次）
       await this.setupTheme();
       
       console.log('[AeScape] 悬浮球系统初始化完成');
@@ -72,6 +75,45 @@ class AeScapeFloatingBall {
       console.error('[AeScape] 悬浮球初始化失败:', error);
       this.scheduleRetry();
     }
+  }
+
+  // 判断是否处于扩展上下文
+  hasExtensionContext() {
+    try {
+      return typeof chrome !== 'undefined' && !!(chrome.runtime && chrome.runtime.id);
+    } catch (_e) {
+      return false;
+    }
+  }
+
+  // 可靠的消息发送（带退避、可选唤醒）
+  async sendMessageWithRetry(message, maxAttempts = 3, baseDelayMs = 150) {
+    if (!this.hasExtensionContext()) {
+      throw new Error('Extension context not available');
+    }
+    let lastError = null;
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        const res = await new Promise((resolve, reject) => {
+          try {
+            if (!this.hasExtensionContext()) {
+              reject(new Error('Extension context not available'));
+              return;
+            }
+            chrome.runtime.sendMessage(message, (r) => {
+              const err = chrome.runtime.lastError;
+              if (err) reject(new Error(err.message || 'chrome.runtime.lastError'));
+              else resolve(r);
+            });
+          } catch (e) { reject(e); }
+        });
+        return res;
+      } catch (e) {
+        lastError = e;
+        await new Promise(r => setTimeout(r, baseDelayMs * attempt));
+      }
+    }
+    throw lastError || new Error('sendMessageWithRetry failed');
   }
 
   shouldShow() {
@@ -89,6 +131,9 @@ class AeScapeFloatingBall {
 
   async checkUserSettings() {
     try {
+      if (!this.hasExtensionContext() || !chrome.storage?.local?.get) {
+        return true; // 无扩展上下文时默认启用，但仅用默认数据
+      }
       const result = await chrome.storage.local.get(['floatingBallEnabled']);
       const enabled = result.floatingBallEnabled !== false; // 默认启用
       console.log('[AeScape] 用户设置检查:', enabled);
@@ -285,7 +330,8 @@ class AeScapeFloatingBall {
     const defaultGradient = isNight ? 
       'linear-gradient(135deg, rgb(31, 40, 91) 0%, rgb(46, 54, 96) 100%)' :
       'linear-gradient(135deg, rgba(66, 165, 245, 0.2) 0%, rgba(102, 187, 106, 0.05) 100%)';
-    const defaultText = isNight ? 'rgba(255, 255, 255, 0.98)' : 'rgba(33, 33, 33, 0.9)';
+    // 默认文本统一为深色，以保证未配置API时的可读性
+    const defaultText = 'rgba(33, 33, 33, 0.92)';
     
     this.ball.style.setProperty('background', defaultGradient, 'important');
     this.ball.style.setProperty('color', defaultText, 'important');
@@ -315,7 +361,7 @@ class AeScapeFloatingBall {
     
     try {
       // 检查扩展是否可用
-      if (!chrome.runtime?.id) {
+      if (!this.hasExtensionContext()) {
         console.warn('[AeScape] 扩展上下文不可用，使用默认数据');
         this.useDefaultWeatherData();
         return;
@@ -324,12 +370,9 @@ class AeScapeFloatingBall {
       // 获取天气数据
       let weatherResponse;
       try {
-        weatherResponse = await Promise.race([
-          chrome.runtime.sendMessage({ type: 'weather.getCurrent' }),
-          new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('天气数据获取超时')), 3000)
-          )
-        ]);
+        // 先 ping 唤醒 SW
+        try { await this.sendMessageWithRetry({ type: 'ping' }, 1, 0); } catch (_) {}
+        weatherResponse = await this.sendMessageWithRetry({ type: 'weather.getCurrent' }, 4, 200);
       } catch (msgError) {
         console.warn('[AeScape] 消息传递失败:', msgError.message, '使用默认数据');
         this.useDefaultWeatherData();
@@ -348,12 +391,7 @@ class AeScapeFloatingBall {
 
       // 获取位置数据
       try {
-        const locationResponse = await Promise.race([
-          chrome.runtime.sendMessage({ type: 'location.getCurrent' }),
-          new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('位置数据获取超时')), 2000)
-          )
-        ]);
+        const locationResponse = await this.sendMessageWithRetry({ type: 'location.getCurrent' }, 4, 200);
         
         if (locationResponse?.success && locationResponse?.data) {
           this.currentLocation = locationResponse.data;
@@ -419,37 +457,69 @@ class AeScapeFloatingBall {
       iconElement.innerHTML = iconSvg;
     }
 
-    // 更新主题
-    this.updateTheme(weatherData);
+    // 更新主题（确保与新标签页同步）
+    this.updateThemeWithWeather(weatherData);
+  }
+
+  // 基于天气数据更新主题（与新标签页保持同步）
+  async updateThemeWithWeather(weatherData) {
+    if (!this.ball || !weatherData) return;
+
+    console.log('[AeScape] 基于天气数据更新主题');
+    
+    try {
+      // 1. 优先使用与新标签页相同的主题计算逻辑
+      if (window.unifiedTheme) {
+        const hour = new Date().getHours();
+        const weatherCode = weatherData.weather?.code || 'clear';
+        const isNight = weatherData.env?.isNight || (hour < 6 || hour > 19);
+        
+        // 使用与新标签页完全相同的主题计算
+        const theme = window.unifiedTheme.getTheme(weatherCode, hour, isNight);
+        const themeData = {
+          weatherCode,
+          hour,
+          isNight,
+          theme,
+          floating: { gradient: theme.gradient, text: theme.text },
+          popup: { gradient: theme.gradient, text: theme.text },
+          newtab: theme,
+          panel: { gradient: theme.gradient, text: theme.text }
+        };
+        
+        console.log('[AeScape] 主题已更新（本地计算）:', themeData);
+        this.applyTheme(themeData);
+        return;
+      }
+      
+      // 2. 备用方案：使用 fallback 主题
+      this.applyFallbackTheme(weatherData);
+      
+    } catch (error) {
+      console.warn('[AeScape] 主题更新失败:', error);
+      this.applyFallbackTheme(weatherData);
+    }
   }
 
   async updateTheme(weatherData) {
     if (!this.ball || !weatherData) return;
 
     console.log('[AeScape] 更新主题');
-    
+    // 优先使用全局主题管理器（如果存在）
     try {
-      // 从背景服务获取主题数据
-      const themeResponse = await chrome.runtime.sendMessage({
-        type: 'theme.getCurrent'
-      });
-      
-      if (themeResponse?.success && themeResponse?.data?.floating) {
-        // 缓存主题数据供面板使用
-        this.cachedThemeData = themeResponse.data;
-        
-        const theme = themeResponse.data.floating;
+      const globalTheme = window.GlobalThemeManager?.getCurrentTheme?.();
+      if (globalTheme?.floating) {
+        this.cachedThemeData = globalTheme;
+        const theme = globalTheme.floating;
         this.ball.style.setProperty('background', theme.gradient, 'important');
         this.ball.style.setProperty('color', theme.text, 'important');
-        console.log('[AeScape] 主题已更新（来自背景服务）:', theme);
-      } else {
-        console.warn('[AeScape] 背景服务返回无效数据，使用备用方案:', themeResponse);
-        this.applyFallbackTheme(weatherData);
+        console.log('[AeScape] 主题已更新（GlobalThemeManager）:', theme);
+        return;
       }
-    } catch (error) {
-      console.warn('[AeScape] 无法从背景服务获取主题，使用备用方案:', error);
-      this.applyFallbackTheme(weatherData);
-    }
+    } catch (_) {}
+
+    // 使用本地统一主题系统计算
+    this.applyFallbackTheme(weatherData);
   }
 
   applyFallbackTheme(weatherData) {
@@ -468,7 +538,7 @@ class AeScapeFloatingBall {
     }
 
     this.ball.style.setProperty('background', theme.gradient, 'important');
-    this.ball.style.setProperty('color', theme.text, 'important');
+    this.ball.style.setProperty('color', theme.text || 'rgba(33, 33, 33, 0.92)', 'important');
     
     console.log('[AeScape] 主题已更新（备用方案）:', theme);
   }
@@ -914,18 +984,68 @@ class AeScapeFloatingBall {
   }
 
   async setupTheme() {
-    // 直接从background服务获取主题数据
+    // 优先使用页面中的 GlobalThemeManager，如果没有则使用默认主题
     try {
-      const themeResponse = await chrome.runtime.sendMessage({
-        type: 'theme.getCurrent'
-      });
-      
-      if (themeResponse?.success && themeResponse?.data) {
-        this.applyTheme(themeResponse.data);
+      const themeData = window.GlobalThemeManager?.getCurrentTheme?.();
+      if (themeData) {
+        this.applyTheme(themeData);
+        return;
       }
-    } catch (error) {
-      console.warn('[AeScape] 主题获取失败，使用默认主题:', error);
-      this.applyDefaultTheme();
+    } catch (_) {}
+
+    // 兜底：尝试从 storage 中读取最新主题快照
+    try {
+      if (this.hasExtensionContext() && chrome.storage?.local?.get) {
+        const stored = await chrome.storage.local.get(['currentThemeData']);
+        if (stored?.currentThemeData) {
+          this.applyTheme(stored.currentThemeData);
+          return;
+        }
+      }
+    } catch (_) {}
+
+    // 再兜底：直接用 unifiedTheme 计算一个可用主题（不依赖天气数据）
+    try {
+      if (window.unifiedTheme) {
+        const hour = new Date().getHours();
+        const isNight = hour < 6 || hour > 19;
+        const theme = window.unifiedTheme.getTheme('clear', hour, isNight);
+        const themeData = { floating: { gradient: theme.gradient, text: theme.text }, panel: { text: theme.text }, newtab: theme };
+        this.applyTheme(themeData);
+        return;
+      }
+    } catch (_) {}
+
+    // 最终兜底
+    this.applyDefaultTheme();
+  }
+
+  // 订阅统一主题系统的后续变更（在新标签页/弹窗等扩展页面中生效）
+  subscribeToGlobalTheme(applyImmediately = false) {
+    try {
+      const addListener = window.GlobalThemeManager?.addListener;
+      if (typeof addListener === 'function') {
+        addListener((themeData) => {
+          try {
+            if (themeData) {
+              this.applyTheme(themeData);
+              // 同步面板样式（如果已打开）
+              if (this.panel) {
+                this.panel.style.background = this.getCurrentThemeGradient();
+                this.panel.style.color = this.getCurrentThemeTextColor();
+              }
+            }
+          } catch (e) {
+            console.warn('[AeScape] GlobalThemeManager 回调失败:', e);
+          }
+        });
+        if (applyImmediately) {
+          const current = window.GlobalThemeManager?.getCurrentTheme?.();
+          if (current) this.applyTheme(current);
+        }
+      }
+    } catch (e) {
+      console.warn('[AeScape] 订阅全局主题失败:', e);
     }
   }
 
@@ -938,10 +1058,10 @@ class AeScapeFloatingBall {
     console.log('[AeScape] 应用主题:', themeData);
     
     // 应用到悬浮球
-    const floatingTheme = themeData.floating;
+    const floatingTheme = themeData.floating || themeData.newtab || themeData.popup || null;
     if (floatingTheme) {
       this.ball.style.setProperty('background', floatingTheme.gradient, 'important');
-      this.ball.style.setProperty('color', floatingTheme.text, 'important');
+      this.ball.style.setProperty('color', (floatingTheme.text || 'rgba(33, 33, 33, 0.92)'), 'important');
     }
     
     // 缓存主题数据供面板使用，确保panel数据可用

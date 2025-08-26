@@ -73,6 +73,11 @@ class WeatherBackgroundService {
     }
     
     chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+      // 轻量 ping：用于唤醒或健康检查
+      if (message && message.type === 'ping') {
+        sendResponse({ success: true, ts: Date.now() });
+        return true;
+      }
       // 使用箭头函数确保正确的this绑定
       this.handleMessageAsync(message, sender, sendResponse);
       return true; // 保持消息通道开放，支持异步响应

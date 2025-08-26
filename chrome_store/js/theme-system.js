@@ -427,7 +427,7 @@ class UnifiedThemeSystem {
     root.style.setProperty('--theme-secondary', theme.secondary);
     root.style.setProperty('--theme-accent', theme.accent);
     root.style.setProperty('--theme-gradient', theme.gradient);
-    root.style.setProperty('--theme-text', theme.text);
+    root.style.setProperty('--theme-text', theme.text || 'rgba(33, 33, 33, 0.92)');
 
     // 更新背景层
     const backgroundLayer = document.querySelector('.background-layer');
@@ -451,7 +451,7 @@ class UnifiedThemeSystem {
 
     // 更新CSS变量以确保强制覆盖
     root.style.setProperty('--theme-gradient', theme.gradient);
-    root.style.setProperty('--theme-text', theme.text);
+    root.style.setProperty('--theme-text', theme.text || 'rgba(33, 33, 33, 0.92)');
     
     // 直接应用到body样式（强制覆盖）
     body.style.setProperty('background', theme.gradient, 'important');
@@ -547,6 +547,12 @@ window.GlobalThemeManager = {
     };
     
     console.log('[GlobalThemeManager] 全局主题已更新:', this.currentThemeData);
+    // 将主题快照写入 storage，供内容脚本在无 GlobalThemeManager 时读取
+    try {
+      if (chrome?.storage?.local?.set) {
+        chrome.storage.local.set({ currentThemeData: this.currentThemeData }).catch?.(() => {});
+      }
+    } catch (_) {}
     
     // 通知所有监听器
     this.notifyListeners();

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "天景 AeScape",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "让每一次打开新标签页都成为一次与自然的邂逅",
   "permissions": [
     "storage",

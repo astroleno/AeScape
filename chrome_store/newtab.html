@@ -51,8 +51,13 @@
       <!-- 天气卡片 -->
       <div class="weather-card-container">
       <div class="weather-card">
-        <!-- 主要天气信息 -->
-        <div class="weather-main">
+        <!-- 标题和位置信息（直接子元素） -->
+        <div class="section-title">当前天气</div>
+        <div class="location-name" id="card-location-name">加载中...</div>
+        
+        <!-- 天气摘要（主信息） -->
+        <div class="weather-summary">
+          <div class="weather-main">
           <div class="temperature-section">
             <div class="current-temp" id="current-temp">--°</div>
             <div class="weather-desc" id="weather-desc">天气加载中...</div>
@@ -71,6 +76,7 @@
                 <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
               </svg>
             </div>
+          </div>
           </div>
         </div>
 

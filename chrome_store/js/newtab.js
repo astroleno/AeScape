@@ -33,6 +33,60 @@ class AeScapeNewTab {
     }
   }
 
+  /**
+   * 在 MV3 下，background service worker 可能尚未唤醒或刚重启，
+   * 这里增加一个带退避的安全消息发送封装，提升稳定性。
+   */
+  async sendMessageWithRetry(message, maxAttempts = 3, baseDelayMs = 150) {
+    // 扩展上下文不可用（例如直接用 file:// 打开页面或扩展被重载）
+    if (!this.hasExtensionContext()) {
+      throw new Error('Extension context not available');
+    }
+
+    let lastError = null;
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        // 使用 Promise 包装 sendMessage
+        const response = await new Promise((resolve, reject) => {
+          try {
+            // 二次守护：在真正调用前再次检测
+            if (!this.hasExtensionContext()) {
+              reject(new Error('Extension context not available'));
+              return;
+            }
+            chrome.runtime.sendMessage(message, (res) => {
+              const err = chrome.runtime.lastError;
+              if (err) {
+                reject(new Error(err.message || 'chrome.runtime.lastError'));
+              } else {
+                resolve(res);
+              }
+            });
+          } catch (e) {
+            reject(e);
+          }
+        });
+        return response;
+      } catch (err) {
+        lastError = err;
+        // 常见报错：Receiving end does not exist / Extension context invalidated
+        // 退避等待后重试
+        const delay = baseDelayMs * attempt;
+        await new Promise(r => setTimeout(r, delay));
+      }
+    }
+    throw lastError || new Error('sendMessageWithRetry failed');
+  }
+
+  // 判断是否处于扩展上下文（兼容 chrome 未定义的场景）
+  hasExtensionContext() {
+    try {
+      return typeof chrome !== 'undefined' && !!(chrome.runtime && chrome.runtime.id);
+    } catch (_e) {
+      return false;
+    }
+  }
+
   // 使用统一图标库
   getSVGIcon(weatherCode, isNight = false) {
     if (window.AeScapeIcons) {
@@ -180,7 +234,11 @@ class AeScapeNewTab {
   // API状态检查
   async checkApiStatus() {
     try {
-      const response = await chrome.runtime.sendMessage({ type: 'api.checkStatus' });
+      if (!this.hasExtensionContext()) {
+        this.isApiConfigured = false;
+        return;
+      }
+      const response = await this.sendMessageWithRetry({ type: 'api.checkStatus' }, 4, 200);
       this.isApiConfigured = response?.success && response?.hasApiKey;
       
       if (!this.isApiConfigured) {
@@ -196,16 +254,15 @@ class AeScapeNewTab {
   async loadWeatherData() {
     try {
       // 检查扩展是否可用
-      if (!chrome.runtime?.id) {
+      if (!this.hasExtensionContext()) {
         console.log('Extension context not available, skipping weather load');
         return;
       }
 
-      // 添加超时处理，避免Extension context invalidated错误
-      const response = await Promise.race([
-        chrome.runtime.sendMessage({ type: 'weather.getCurrent' }),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('Weather data timeout')), 3000))
-      ]);
+      // 先 ping 一次，确保 SW 已唤醒
+      try { await this.sendMessageWithRetry({ type: 'ping' }, 1, 0); } catch (_) {}
+
+      const response = await this.sendMessageWithRetry({ type: 'weather.getCurrent' }, 4, 200);
       
       if (response?.success && response?.data) {
         this.weatherData = response.data;
@@ -214,10 +271,7 @@ class AeScapeNewTab {
         await this.updateWeatherTheme(response.data);
       }
 
-      const locationResponse = await Promise.race([
-        chrome.runtime.sendMessage({ type: 'location.getCurrent' }),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('Location data timeout')), 3000))
-      ]);
+      const locationResponse = await this.sendMessageWithRetry({ type: 'location.getCurrent' }, 4, 200);
       
       if (locationResponse?.success && locationResponse?.data) {
         this.currentLocation = locationResponse.data;
@@ -300,20 +354,36 @@ class AeScapeNewTab {
 
   updateLocationDisplay(location) {
     const locationElement = document.getElementById('location-name');
+    const cardLocationElement = document.getElementById('card-location-name');
     if (locationElement) {
       locationElement.textContent = location.name || '未知位置';
+    }
+    if (cardLocationElement) {
+      cardLocationElement.textContent = location.name || '未知位置';
     }
   }
 
   async updateWeatherTheme(weather) {
     // 统一从背景服务获取主题数据
     try {
-      const themeResponse = await chrome.runtime.sendMessage({
-        type: 'theme.getCurrent'
-      });
+      const themeResponse = await this.sendMessageWithRetry({ type: 'theme.getCurrent' }, 4, 200);
       
       if (themeResponse?.success && themeResponse?.data) {
         this.applyThemeData(themeResponse.data);
+        
+        // 通知悬浮球同步主题（如果扩展上下文可用）
+        if (this.hasExtensionContext()) {
+          try {
+            // 发送主题更新消息给所有内容脚本
+            await this.sendMessageWithRetry({ 
+              type: 'theme.updated', 
+              data: themeResponse.data 
+            }, 2, 100);
+            console.log('[AeScape] 已发送主题更新消息给悬浮球');
+          } catch (e) {
+            console.warn('[AeScape] 发送主题更新消息失败:', e.message);
+          }
+        }
       }
     } catch (error) {
       console.warn('Failed to get theme from background:', error);
@@ -401,7 +471,7 @@ class AeScapeNewTab {
         return;
       }
 
-      const response = await chrome.runtime.sendMessage({ type: 'weather.forceUpdate' });
+      const response = await this.sendMessageWithRetry({ type: 'weather.forceUpdate' }, 4, 200);
 
       if (response?.success && response?.data) {
         this.weatherData = response.data;
@@ -433,10 +503,10 @@ class AeScapeNewTab {
     }
 
     try {
-      const response = await chrome.runtime.sendMessage({
+      const response = await this.sendMessageWithRetry({
         type: 'api.setKey',
         apiKey: apiKey
-      });
+      }, 3, 200);
 
       if (response?.success) {
         this.isApiConfigured = true;
@@ -471,10 +541,10 @@ class AeScapeNewTab {
     }
 
     try {
-      const response = await chrome.runtime.sendMessage({
+      const response = await this.sendMessageWithRetry({
         type: 'api.testKey',
         apiKey: apiKey
-      });
+      }, 3, 200);
 
       if (response?.success) {
         this.showNotification('success', `${response.message} 测试位置：${response.testData.location}，温度：${response.testData.temperature}°C`);
@@ -503,10 +573,10 @@ class AeScapeNewTab {
     }
 
     try {
-      const response = await chrome.runtime.sendMessage({
+      const response = await this.sendMessageWithRetry({
         type: 'location.setByName',
         cityName: cityName
-      });
+      }, 3, 200);
 
       if (response?.success) {
         this.currentLocation = response.location;
@@ -543,11 +613,11 @@ class AeScapeNewTab {
         });
       });
 
-      const response = await chrome.runtime.sendMessage({
+      const response = await this.sendMessageWithRetry({
         type: 'location.setCoordinates',
         lat: position.coords.latitude,
         lon: position.coords.longitude
-      });
+      }, 3, 200);
 
       if (response?.success) {
         this.currentLocation = response.location;
@@ -591,10 +661,10 @@ class AeScapeNewTab {
     }
 
     try {
-      const response = await chrome.runtime.sendMessage({
+      const response = await this.sendMessageWithRetry({
         type: 'location.searchCities',
         query: query
-      });
+      }, 3, 200);
 
       if (response?.success && response?.cities) {
         this.displayCityResults(response.cities);
@@ -638,12 +708,12 @@ class AeScapeNewTab {
 
   async selectCity(city) {
     try {
-      const response = await chrome.runtime.sendMessage({
+      const response = await this.sendMessageWithRetry({
         type: 'location.setCoordinates',
         lat: city.lat,
         lon: city.lon,
         name: city.name
-      });
+      }, 3, 200);
 
       if (response?.success) {
         this.currentLocation = city;

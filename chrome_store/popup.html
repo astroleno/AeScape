@@ -43,7 +43,7 @@
       border: none !important;
       outline: none !important;
       margin: 0 !important;
-      padding: 0 0 60px 0 !important;
+      padding: 12px 12px 16px 12px !important;
       overflow: visible !important;
       line-height: 1.5 !important;
       box-shadow: 
@@ -69,16 +69,21 @@
     }
 
     .content {
-      padding: 0 20px 20px !important;
+      padding: 8px !important;
       border: none !important;
       margin: 0 !important;
+      display: flex !important;
+      flex-direction: column !important;
+      gap: 12px !important;
     }
 
     .section {
-      padding: 20px !important;
-      margin-bottom: 16px !important;
-      border: none !important;
-      background: none !important;
+      padding: 16px !important;
+      margin: 0 !important;
+      border: none !important; /* 恢复：不加容器边框 */
+      background: none !important; /* 恢复：不加容器背景 */
+      border-radius: 0 !important; /* 恢复：无多余圆角容器 */
+      box-shadow: none !important; /* 恢复：无容器阴影 */
     }
 
     .section-title {
@@ -91,10 +96,12 @@
     }
 
     .weather-info {
-      display: flex !important;
+      display: grid !important;
+      grid-template-columns: 40px 1fr !important;
       align-items: center !important;
-      gap: 16px !important;
-      margin-bottom: 20px !important;
+      column-gap: 12px !important;
+      row-gap: 2px !important;
+      margin-bottom: 12px !important;
       border: none !important;
       padding: 0 !important;
     }
@@ -165,7 +172,7 @@
     .stats {
       display: grid !important;
       grid-template-columns: 1fr 1fr !important;
-      gap: 16px 20px !important;
+      gap: 10px 12px !important;
       font-size: 0.8rem !important;
       line-height: 1.6 !important;
       border: none !important;
@@ -180,9 +187,9 @@
       opacity: 0.9 !important;
       padding: 8px 6px !important;
       transition: all 200ms ease !important;
-      border: none !important;
+      border: 1px solid rgba(255, 255, 255, 0.08) !important;
       background: rgba(255, 255, 255, 0.03) !important;
-      border-radius: 8px !important;
+      border-radius: 10px !important;
       margin: 0 !important;
     }
 
