@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AeScape 主题测试</title>
+  <link rel="stylesheet" href="css/newtab.css">
+  <script src="js/theme-system.js"></script>
+  <style>
+    body { display:flex; min-height:100vh; align-items:center; justify-content:center; }
+    .panel { background:rgba(255,255,255,0.85); border:1px solid rgba(0,0,0,0.06); border-radius:12px; padding:16px; width:min(720px,92vw); box-shadow:0 10px 30px rgba(0,0,0,0.12); }
+    .row { display:flex; gap:8px; align-items:center; margin:8px 0; }
+    .preview { height:120px; border-radius:10px; border:1px solid var(--glass-border, rgba(255,255,255,0.2)); display:flex; align-items:center; justify-content:center; color:var(--theme-text); background:var(--theme-gradient); }
+    input[type="text"] { flex:1; padding:8px 10px; border-radius:8px; border:1px solid #d9d9d9; }
+    button { padding:8px 12px; border:1px solid #ccc; background:#fff; border-radius:8px; cursor:pointer; }
+    small { color:#666; }
+  </style>
+</head>
+<body>
+  <div class="panel">
+    <h3>主题测试（天气 × 时间段 预设）</h3>
+    <div class="row">
+      <label style="width:80px;">天气</label>
+      <select id="sel-weather" style="flex:1; padding:6px 8px; border-radius:8px; border:1px solid #d9d9d9;">
+        <option value="clear">晴 clear</option>
+        <option value="cloudy">多云 cloudy</option>
+        <option value="rain">雨 rain</option>
+        <option value="snow">雪 snow</option>
+        <option value="fog">雾 fog</option>
+        <option value="thunderstorm">雷暴 thunderstorm</option>
+      </select>
+    </div>
+    <div class="row">
+      <label style="width:80px;">时间段</label>
+      <select id="sel-time" style="flex:1; padding:6px 8px; border-radius:8px; border:1px solid #d9d9d9;">
+        <option value="dawn">黎明 dawn</option>
+        <option value="morning">上午 morning</option>
+        <option value="noon" selected>中午 noon</option>
+        <option value="afternoon">下午 afternoon</option>
+        <option value="sunset">日落 sunset</option>
+        <option value="evening">傍晚 evening</option>
+        <option value="night">夜晚 night</option>
+      </select>
+    </div>
+    <div class="row"><button id="btn-apply">应用预设</button><button id="btn-copy">复制配置</button><button id="btn-send">应用到新标签页</button></div>
+    <div class="preview" id="preview">示例文字 Aa 123 边框跟随 glass-border</div>
+  </div>
+
+  <script>
+    const $w = document.getElementById('sel-weather');
+    const $tm = document.getElementById('sel-time');
+    const $p = document.getElementById('preview');
+    const SLOT_TO_HOUR = { dawn:6, morning:9, noon:12, afternoon:16, sunset:18, evening:20, night:22 };
+    function applyFromPreset() {
+      if (!window.UnifiedThemeSystem) return alert('theme-system.js 未加载');
+      const sys = new UnifiedThemeSystem();
+      const slot = $tm.value; const hour = SLOT_TO_HOUR[slot] ?? 12;
+      const isNight = (slot === 'night');
+      const t = sys.getTheme($w.value, hour, isNight, null);
+      const root = document.documentElement;
+      root.style.setProperty('--theme-gradient', t.gradient);
+      root.style.setProperty('--theme-primary',  t.primary || t.gradient);
+      root.style.setProperty('--theme-secondary',t.secondary || t.gradient);
+      root.style.setProperty('--theme-accent',   t.accent || t.gradient);
+      root.style.setProperty('--theme-text',     t.text || '#e6f2ff');
+      root.style.setProperty('--glass-border',   'rgba(230,242,255,0.20)');
+      document.body.classList.add('theme-ready');
+      // 同步预览盒子，确保肉眼可见
+      const box = document.getElementById('preview');
+      box.style.background = t.gradient;
+      box.style.color = (t.text || '#e6f2ff');
+      box.style.borderColor = 'rgba(230,242,255,0.20)';
+    }
+    document.getElementById('btn-apply').onclick = applyFromPreset;
+    document.getElementById('btn-copy').onclick = async () => {
+      const key = `${$w.value}-${$tm.value}`;
+      const t = THEME_MAP[key] || THEME_MAP['clear-noon'];
+      const payload = t || {};
+      try {
+        await navigator.clipboard.writeText(JSON.stringify(payload, null, 2));
+        alert('已复制配置到剪贴板，可粘贴到控制台或配置文件');
+      } catch (_) { alert('复制失败，请手动选择文本复制'); }
+    };
+    document.getElementById('btn-send').onclick = () => {
+      try {
+        const key = `${$w.value}-${$tm.value}`;
+        const t = THEME_MAP[key] || THEME_MAP['clear-noon'];
+        if (!t) return alert('未找到该组合的预设');
+        if (!(window.chrome && chrome.storage && chrome.storage.local)) {
+          alert('当前页面未在扩展上下文中打开，无法直接发送到新标签页。请通过扩展URL打开此页面。');
+          return;
+        }
+        chrome.storage.local.set({ currentThemeData: { newtab: t } }, () => {
+          alert('已发送到新标签页，若打开着会立即应用');
+        });
+      } catch (e) {
+        console.warn(e);
+        alert('发送失败，请检查控制台');
+      }
+    };
+    // 初次与变更时应用
+    applyFromPreset();
+    $w.addEventListener('change', applyFromPreset);
+    $tm.addEventListener('change', applyFromPreset);
+  </script>
+</body>
+</html>
+
+

@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AeScape 主题对比度体检报告</title>
+  <style>
+    body { font: 14px/1.5 -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Inter,sans-serif; padding: 16px; }
+    h2 { margin: 0 0 12px; }
+    .meta { color:#666; margin-bottom:12px; }
+    table { border-collapse: collapse; width: 100%; font-size: 13px; }
+    th, td { border: 1px solid #e0e0e0; padding: 8px; text-align: left; }
+    th { background: #fafafa; position: sticky; top: 0; }
+    .bad { background: #fff4f4; }
+    .ok { background: #f5fff4; }
+    .chip { display:inline-block; min-width: 64px; padding: 2px 6px; border-radius: 6px; border:1px solid rgba(0,0,0,.1); }
+    .row { display:flex; gap:8px; align-items:center; margin:12px 0; }
+    button { padding:6px 10px; border-radius:8px; border:1px solid #ccc; background:#fff; cursor:pointer; }
+    .note { color:#888; font-size:12px; }
+  </style>
+</head>
+<body>
+  <h2>主题对比度体检（WCAG）</h2>
+  <div class="meta">阈值：正文 4.5:1。背景取渐变首色作为代表色进行快速审计。</div>
+  <div class="row">
+    <button id="btn-export">导出 CSV</button>
+    <span class="note">提示：如本页未显示数据，请通过扩展 URL 打开本页，或刷新后再试。</span>
+  </div>
+  <table id="tbl">
+    <thead>
+      <tr>
+        <th>Key</th>
+        <th>Text</th>
+        <th>BG(sample)</th>
+        <th>Contrast</th>
+        <th>Pass</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <script>
+    // 动态加载 theme-system，支持相对路径回退
+    (function load(onReady){
+      if (window.UnifiedThemeSystem) return onReady();
+      const paths = ['js/theme-system.js','../js/theme-system.js'];
+      let i=0; (function next(){
+        if (i>=paths.length) { alert('theme-system.js 未加载'); return; }
+        const s=document.createElement('script'); s.src=paths[i]+'?'+Date.now();
+        s.onload=onReady; s.onerror=()=>{ i++; next(); }; document.head.appendChild(s);
+      })();
+    })(function init(){
+      const sys = new UnifiedThemeSystem();
+      const map = sys.THEME_MAP || {};
+      const rows = [];
+
+      const pickColor = (gradient) => {
+        if (!gradient) return null;
+        const m = String(gradient).match(/rgba?\([^)]+\)|#(?:[0-9a-fA-F]{3,8})/);
+        return m ? m[0] : null;
+      };
+      const parse = (c) => {
+        if (!c) return null;
+        if (c.startsWith('#')) {
+          let h=c.slice(1); if(h.length===3) h=h.split('').map(x=>x+x).join(''); if(h.length===8) h=h.slice(0,6);
+          return [parseInt(h.slice(0,2),16),parseInt(h.slice(2,4),16),parseInt(h.slice(4,6),16)];
+        }
+        const m=c.match(/rgba?\(([^)]+)\)/); if(!m) return null;
+        const [r,g,b]=m[1].split(',').map(s=>parseFloat(s)); return [r,g,b];
+      };
+      const relL = ([r,g,b])=>{ const s=[r,g,b].map(v=>v/255).map(v=>v<=0.03928? v/12.92 : Math.pow((v+0.055)/1.055,2.4)); return 0.2126*s[0]+0.7152*s[1]+0.0722*s[2]; };
+      const contrast = (fg,bg)=>{ const L1=relL(fg), L2=relL(bg); const max=Math.max(L1,L2), min=Math.min(L1,L2); return (max+0.05)/(min+0.05); };
+
+      Object.entries(map).forEach(([key, t]) => {
+        const bgS = pickColor(t.gradient);
+        const fgS = t.text || '#000';
+        const bg = parse(bgS); const fg = parse(fgS);
+        if (!bg || !fg) return;
+        const ratio = +(contrast(fg,bg).toFixed(2));
+        const ok = ratio >= 4.5;
+        rows.push({ key, text: fgS, bg: bgS, ratio, ok });
+      });
+
+      // 渲染
+      const tbody = document.querySelector('#tbl tbody');
+      rows.sort((a,b)=> a.ok===b.ok ? b.ratio-a.ratio : (a.ok?1:-1));
+      tbody.innerHTML = rows.map(r=>`
+        <tr class="${r.ok?'ok':'bad'}">
+          <td>${r.key}</td>
+          <td><span class="chip" style="background:${r.ok?'#f5fff4':'#fff4f4'};">${r.text}</span></td>
+          <td><span class="chip" style="background:${r.bg};"></span> ${r.bg}</td>
+          <td>${r.ratio}</td>
+          <td>${r.ok?'✅':'❌'}</td>
+        </tr>`).join('');
+
+      // 导出 CSV
+      document.getElementById('btn-export').onclick = () => {
+        const header = ['key','text','bg','contrast','pass'];
+        const csv = [header.join(',')].concat(rows.map(r=>[
+          r.key, JSON.stringify(r.text), JSON.stringify(r.bg), r.ratio, r.ok?'PASS':'FAIL'
+        ].join(','))).join('\n');
+        const blob = new Blob([csv], {type:'text/csv'});
+        const a = document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='theme-contrast-audit.csv'; a.click();
+      };
+    });
+  </script>
+</body>
+</html>
+
+

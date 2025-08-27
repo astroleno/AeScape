@@ -1,0 +1,43 @@
+key,text,bg,contrast,pass
+cloudy-morning,"rgba(33, 33, 33, 0.85)","rgba(96, 125, 139, 0.1)",3.68,FAIL
+fog-evening,"rgba(33, 33, 33, 0.9)","rgba(117, 117, 117, 0.06)",3.49,FAIL
+cloudy-noon,"rgba(33, 33, 33, 0.85)","rgba(84, 110, 122, 0.1)",2.98,FAIL
+cloudy-sunset,"rgba(33, 33, 33, 0.9)","rgba(84, 110, 122, 0.1)",2.98,FAIL
+rain-morning,"rgba(33, 33, 33, 0.85)","rgba(63, 81, 181, 0.12)",2.34,FAIL
+cloudy-afternoon,"rgba(33, 33, 33, 0.85)","rgba(69, 90, 100, 0.1)",2.22,FAIL
+clear-evening,"rgba(33, 33, 33, 0.9)","rgba(103, 58, 183, 0.18)",2.2,FAIL
+rain-dawn,"rgba(33, 33, 33, 0.85)","rgba(93, 78, 117, 0.12)",2.16,FAIL
+rain-noon,"rgba(33, 33, 33, 0.85)","rgba(48, 63, 159, 0.12)",1.79,FAIL
+cloudy-evening,"rgba(33, 33, 33, 0.9)","rgba(55, 71, 79, 0.16)",1.67,FAIL
+thunderstorm-noon,"rgba(33, 33, 33, 0.9)","rgba(55, 71, 79, 0.15)",1.67,FAIL
+rain-sunset,"rgba(33, 33, 33, 0.9)","rgba(40, 53, 147, 0.12)",1.55,FAIL
+thunderstorm-dawn,"rgba(33, 33, 33, 0.9)","rgba(74, 20, 140, 0.15)",1.36,FAIL
+thunderstorm-morning,"rgba(33, 33, 33, 0.9)","rgba(74, 20, 140, 0.15)",1.36,FAIL
+thunderstorm-sunset,"rgba(33, 33, 33, 0.9)","rgba(74, 20, 140, 0.15)",1.36,FAIL
+rain-afternoon,"rgba(33, 33, 33, 0.85)","rgba(26, 35, 126, 0.12)",1.22,FAIL
+rain-evening,"rgba(33, 33, 33, 0.9)","rgba(26, 35, 126, 0.18)",1.22,FAIL
+thunderstorm-afternoon,"rgba(33, 33, 33, 0.9)","rgba(38, 50, 56, 0.15)",1.22,FAIL
+thunderstorm-evening,"rgba(33, 33, 33, 0.9)","rgba(26, 35, 126, 0.15)",1.22,FAIL
+rain-night,"rgba(255, 255, 255, 0.98)","rgb(7, 10, 17)",19.8,PASS
+thunderstorm-night,"rgba(255, 255, 255, 0.98)","rgb(7, 10, 17)",19.8,PASS
+cloudy-night,"rgba(255, 255, 255, 0.98)","rgb(19, 25, 28)",17.74,PASS
+fog-night,"rgba(255, 255, 255, 0.98)","rgb(33, 33, 33)",16.1,PASS
+fog-dawn,"rgba(33, 33, 33, 0.9)","rgba(245, 245, 245, 0.06)",14.77,PASS
+snow-dawn,"rgba(33, 33, 33, 0.8)","rgba(225, 245, 254, 0.08)",14.33,PASS
+clear-night,"rgba(255, 255, 255, 0.98)","rgb(31, 40, 91)",13.88,PASS
+fog-morning,"rgba(33, 33, 33, 0.9)","rgba(224, 224, 224, 0.06)",12.2,PASS
+snow-morning,"rgba(33, 33, 33, 0.8)","rgba(179, 229, 252, 0.08)",11.91,PASS
+snow-night,"rgba(255, 255, 255, 0.98)","rgb(1, 60, 95)",11.58,PASS
+snow-noon,"rgba(33, 33, 33, 0.8)","rgba(129, 212, 250, 0.08)",9.76,PASS
+clear-dawn,"rgba(33, 33, 33, 0.9)","rgba(255, 183, 77, 0.25)",9.3,PASS
+fog-noon,"rgba(33, 33, 33, 0.9)","rgba(189, 189, 189, 0.06)",8.57,PASS
+clear-noon,"rgba(33, 33, 33, 0.9)","rgba(255, 167, 38, 0.22)",8.29,PASS
+snow-afternoon,"rgba(33, 33, 33, 0.8)","rgba(79, 195, 247, 0.08)",8.04,PASS
+snow-sunset,"rgba(33, 33, 33, 0.9)","rgba(41, 182, 246, 0.08)",6.99,PASS
+clear-afternoon,"rgba(33, 33, 33, 0.9)","rgba(255, 138, 101, 0.2)",6.96,PASS
+cloudy-dawn,"rgba(33, 33, 33, 0.85)","rgba(144, 164, 174, 0.1)",6.22,PASS
+snow-evening,"rgba(33, 33, 33, 0.9)","rgba(3, 169, 244, 0.08)",6.12,PASS
+clear-morning,"rgba(33, 33, 33, 0.9)","rgba(66, 165, 245, 0.2)",6.08,PASS
+fog-afternoon,"rgba(33, 33, 33, 0.9)","rgba(158, 158, 158, 0.06)",6.01,PASS
+fog-sunset,"rgba(33, 33, 33, 0.9)","rgba(158, 158, 158, 0.06)",6.01,PASS
+clear-sunset,"rgba(33, 33, 33, 0.9)","rgba(239, 108, 0, 0.15)",5.23,PASS
