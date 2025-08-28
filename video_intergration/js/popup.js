@@ -203,8 +203,13 @@ class AeScapePopup {
     const floatingBallToggle = document.getElementById('floating-ball-toggle');
     floatingBallToggle?.addEventListener('change', (e) => this.toggleFloatingBall(e.target.checked));
     
-    // 初始化悬浮球状态
+    // 视频模块开关
+    const videoModuleToggle = document.getElementById('video-module-toggle');
+    videoModuleToggle?.addEventListener('change', (e) => this.toggleVideoModule(e.target.checked));
+    
+    // 初始化开关状态
     this.initFloatingBallState();
+    this.initVideoModuleState();
   }
 
   setupIcons() {
@@ -255,6 +260,64 @@ class AeScapePopup {
       }
     } catch (error) {
       console.error('Failed to toggle floating ball:', error);
+    }
+  }
+
+  async initVideoModuleState() {
+    try {
+      // 从配置管理器或存储中获取视频模块状态
+      const result = await chrome.storage.local.get(['videoSettings', 'aescape_config']);
+      const toggle = document.getElementById('video-module-toggle');
+      
+      if (toggle) {
+        let videoEnabled = true; // 默认开启
+        
+        // 优先从统一配置中读取
+        if (result.aescape_config?.video?.enabled !== undefined) {
+          videoEnabled = result.aescape_config.video.enabled;
+        } 
+        // 备选从旧设置中读取
+        else if (result.videoSettings?.enabled !== undefined) {
+          videoEnabled = result.videoSettings.enabled;
+        }
+        
+        toggle.checked = videoEnabled;
+      }
+    } catch (error) {
+      console.error('Failed to load video module state:', error);
+    }
+  }
+
+  async toggleVideoModule(enabled) {
+    try {
+      console.log(`Toggling video module: ${enabled}`);
+      
+      // 更新统一配置
+      const configResult = await chrome.storage.local.get(['aescape_config']);
+      let config = configResult.aescape_config || {};
+      
+      if (!config.video) {
+        config.video = {};
+      }
+      config.video.enabled = enabled;
+      
+      await chrome.storage.local.set({ aescape_config: config });
+      
+      // 同时更新旧格式设置以兼容
+      const videoSettings = { enabled: enabled };
+      await chrome.storage.local.set({ videoSettings: videoSettings });
+      
+      // 触发设置变化标记（用于触发欢迎视频）
+      await chrome.storage.local.set({ 
+        settingsChanged: true,
+        settingsChangeTime: Date.now(),
+        settingsChangeType: 'video_module_toggle'
+      });
+      
+      console.log('Video module toggle saved successfully');
+      
+    } catch (error) {
+      console.error('Failed to toggle video module:', error);
     }
   }
 

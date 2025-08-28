@@ -9,9 +9,10 @@ class WeatherVideoMapper {
     // 基于 video-index.md 的完整映射表
     // 注意：路径需要相对于项目根目录
     this.videoMap = {
-      // 晴天 - 与多云共用视频
+      // 晴天 - 与多云共用c文件夹所有视频
       clear: {
         videos: [
+          'video/tab/c/Windy_1.webm',
           'video/tab/c/cloudy_1.webm',
           'video/tab/c/cloudy_2.webm', 
           'video/tab/c/cloudy_3.webm',
@@ -19,16 +20,32 @@ class WeatherVideoMapper {
           'video/tab/c/cloudy_5.webm',
           'video/tab/c/cloudy_6.webm',
           'video/tab/c/cloudy_7.webm',
-          'video/tab/c/cloudy_8.webm'
+          'video/tab/c/cloudy_8.webm',
+          'video/tab/c/cloudy_9.webm',
+          'video/tab/c/cloudy_10.webm',
+          'video/tab/c/cloudy_11.webm',
+          'video/tab/c/cloudy_12.webm',
+          'video/tab/c/cloudy_13.webm',
+          'video/tab/c/cloudy_14.webm',
+          'video/tab/c/cloudy_15.webm',
+          'video/tab/c/cloudy_16.webm',
+          'video/tab/c/cloudy_17.webm',
+          'video/tab/c/cloudy_18.webm',
+          'video/tab/c/cloudy_19.webm',
+          'video/tab/c/cloudy_20.webm',
+          'video/tab/c/cloudy_21.webm',
+          'video/tab/c/cloudy_22.webm',
+          'video/tab/c/cloudy_23.webm'
         ],
         hasAlpha: true,
         blendMode: 'lighten', // 使用lighten混合模式解决黑边
-        description: '晴天效果（与多云共用，lighten模式）'
+        description: '晴天效果（c文件夹全部视频，lighten模式）'
       },
       
-      // 多云 - 带Alpha通道的云层效果
+      // 多云 - c文件夹所有视频
       cloudy: {
         videos: [
+          'video/tab/c/Windy_1.webm',
           'video/tab/c/cloudy_1.webm',
           'video/tab/c/cloudy_2.webm', 
           'video/tab/c/cloudy_3.webm',
@@ -36,28 +53,55 @@ class WeatherVideoMapper {
           'video/tab/c/cloudy_5.webm',
           'video/tab/c/cloudy_6.webm',
           'video/tab/c/cloudy_7.webm',
-          'video/tab/c/cloudy_8.webm'
+          'video/tab/c/cloudy_8.webm',
+          'video/tab/c/cloudy_9.webm',
+          'video/tab/c/cloudy_10.webm',
+          'video/tab/c/cloudy_11.webm',
+          'video/tab/c/cloudy_12.webm',
+          'video/tab/c/cloudy_13.webm',
+          'video/tab/c/cloudy_14.webm',
+          'video/tab/c/cloudy_15.webm',
+          'video/tab/c/cloudy_16.webm',
+          'video/tab/c/cloudy_17.webm',
+          'video/tab/c/cloudy_18.webm',
+          'video/tab/c/cloudy_19.webm',
+          'video/tab/c/cloudy_20.webm',
+          'video/tab/c/cloudy_21.webm',
+          'video/tab/c/cloudy_22.webm',
+          'video/tab/c/cloudy_23.webm'
         ],
         hasAlpha: true,
         blendMode: 'lighten', // 使用lighten混合模式解决黑边
-        description: '多云效果（带Alpha通道，lighten模式）'
+        description: '多云效果（c文件夹全部视频，lighten模式）'
       },
       
-      // 雨天 - 不同强度的雨滴效果
+      // 雨天 - 包含所有雨天视频文件夹 (b/v/r/g)
       rain: {
         videos: [
-          'video/tab/r/rain_4.webm',   // 小雨
-          'video/tab/r/rain_5.webm',   // 小雨 风
-          'video/tab/r/rain_6.webm',   // 中雨
-          'video/tab/r/rain_7.webm',   // 中雨 风
-          'video/tab/r/rain_8.webm',   // 大雨 风
-          'video/tab/r/rain_9.webm',   // 大雨
-          'video/tab/r/rain_10.webm',  // 小雨
-          'video/tab/r/rain_11.webm'   // 雷雨
+          // r文件夹 - 雨滴效果
+          'video/tab/r/rain_1.webm',
+          'video/tab/r/rain_2.webm',
+          'video/tab/r/rain_3.webm',
+          'video/tab/r/rain_4.webm',
+          'video/tab/r/rain_6.webm',
+          'video/tab/r/rain_7.webm',
+          'video/tab/r/rain_8.webm',
+          'video/tab/r/rain_9.webm',
+          'video/tab/r/rain_10.webm',
+          'video/tab/r/rain_12.webm',
+          // bv文件夹 - 底部视角雨天效果
+          'video/tab/bv/bottomview_1.webm',
+          'video/tab/bv/bottomview_2.webm',
+          'video/tab/bv/bottomview_4.webm',
+          // g文件夹 - 玻璃效果雨天
+          'video/tab/g/glass_1.webm',
+          'video/tab/g/glass_2.webm',
+          'video/tab/g/glass_3.webm',
+          'video/tab/g/glass_4.webm'
         ],
         hasAlpha: false,
         blendMode: 'screen', // 使用screen混合模式
-        description: '雨滴效果（screen模式）'
+        description: '雨滴效果（包含所有雨天视频，screen模式）'
       },
       
       // 雪天 - 不同强度的雪花效果
@@ -78,48 +122,45 @@ class WeatherVideoMapper {
         description: '雪花效果（screen模式）'
       },
       
-      // 雾天 - 与多云共用视频
+      // 雾天 - f文件夹雾天效果
       fog: {
         videos: [
-          'video/tab/c/cloudy_1.webm',
-          'video/tab/c/cloudy_2.webm', 
-          'video/tab/c/cloudy_3.webm',
-          'video/tab/c/cloudy_4.webm',
-          'video/tab/c/cloudy_5.webm',
-          'video/tab/c/cloudy_6.webm',
-          'video/tab/c/cloudy_7.webm',
-          'video/tab/c/cloudy_8.webm'
+          'video/tab/f/foggy_1.webm',
+          'video/tab/f/foggy_2.webm',
+          'video/tab/f/foggy_3.webm'
         ],
         hasAlpha: true,
         blendMode: 'lighten', // 使用lighten混合模式解决黑边
-        description: '雾天效果（与多云共用，lighten模式）'
+        description: '雾天效果（f文件夹专用视频，lighten模式）'
       },
       
-      // 雷暴 - 使用雷雨视频
+      // 雷暴 - t文件夹雷暴效果
       thunderstorm: {
         videos: [
-          'video/tab/r/rain_11.webm'   // 雷雨
+          'video/tab/t/thunder_1.webm',
+          'video/tab/t/thunder_2.webm',
+          'video/tab/t/thunder_3.webm',
+          'video/tab/t/thunder_4.webm'
         ],
         hasAlpha: false,
         blendMode: 'overlay', // 使用overlay混合模式
-        description: '雷暴效果（overlay模式）'
+        description: '雷暴效果（t文件夹专用视频，overlay模式）'
       }
     };
     
-    // 玻璃效果视频（特殊效果）
+    // 玻璃效果视频（已整合到rain类型中，保留用于向后兼容）
     this.glassVideos = [
-      'video/tab/g/glass_1.webm',  // 小雨
-      'video/tab/g/glass_2.webm',  // 小雨
-      'video/tab/g/glass_3.webm',  // 中雨
-      'video/tab/g/glass_4.webm'   // 大雨
+      'video/tab/g/glass_1.webm',
+      'video/tab/g/glass_2.webm',
+      'video/tab/g/glass_3.webm',
+      'video/tab/g/glass_4.webm'
     ];
     
-    // 底部视角视频（特殊效果）
+    // 底部视角视频（已整合到rain类型中，保留用于向后兼容）
     this.bottomViewVideos = [
-      'video/tab/bv/bottomview_1.webm',  // 大雨
-      'video/tab/bv/bottomview_2.webm',  // 雷暴
-      'video/tab/bv/bottomview_3.webm',  // 中雨
-      'video/tab/bv/bottomview_4.webm'   // 小雨
+      'video/tab/bv/bottomview_1.webm',
+      'video/tab/bv/bottomview_2.webm',
+      'video/tab/bv/bottomview_4.webm'
     ];
     
     console.log('WeatherVideoMapper: 初始化完成');

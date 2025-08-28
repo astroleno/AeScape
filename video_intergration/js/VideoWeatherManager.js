@@ -25,6 +25,17 @@ class VideoWeatherManager {
     this.isPlaying = false;
     this.isInitialized = false;
     
+    // 视频优化器
+    this.optimizer = null;
+    if (typeof VideoStreamOptimizer !== 'undefined') {
+      this.optimizer = new VideoStreamOptimizer({
+        preloadStrategy: 'metadata',
+        priorityPreload: true,
+        memoryThreshold: 150,
+        debug: options.debug || false
+      });
+    }
+    
     // 回调函数
     this.callbacks = {
       onStart: options.onStart || null,
@@ -178,6 +189,19 @@ class VideoWeatherManager {
       }
       
       console.log('VideoWeatherManager: 设置视频源', videoPath);
+      
+      // 应用视频优化
+      if (this.optimizer) {
+        try {
+          await this.optimizer.optimizeVideo(video, {
+            priority: hasAlpha ? 'high' : 'normal',
+            weatherType: this.currentWeather
+          });
+          console.log('VideoWeatherManager: 视频优化完成');
+        } catch (optimizeError) {
+          console.warn('VideoWeatherManager: 视频优化失败，继续播放', optimizeError);
+        }
+      }
       
       // 设置视频源
       video.src = videoPath;

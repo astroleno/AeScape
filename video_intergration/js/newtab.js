@@ -14,6 +14,7 @@ class AeScapeNewTab {
     this.videoManager = null;
     this.cardSystem = null;
     this.triggerManager = null;
+    this.videoTriggerManager = null; // 新增：视频触发管理器
     this.lastWeatherType = null;
     this.videoSettings = {
       enabled: true,
@@ -38,24 +39,44 @@ class AeScapeNewTab {
       // 初始化优化模块
       await this.initOptimizationModules();
       
-      // 开场黑幕：200ms 后淡出并移除
+      // 开场黑幕：0.3s等待 + 0.5s渐隐，然后启动内容呼吸感
       try {
         const mask = document.getElementById('boot-mask');
         if (mask) {
-          setTimeout(() => { mask.style.opacity = '0'; }, 50);
-          setTimeout(() => { mask.remove(); }, 250);
+          console.log('AeScape: 开场黑幕初始化完成');
+          
+          // 立即开始黑幕渐隐
+          console.log('🖤 AeScape: 立即开始0.5s黑幕渐隐...');
+          mask.style.opacity = '0'; 
+          
+          // 0.5s后移除黑幕
+          setTimeout(() => { 
+            console.log('✨ AeScape: 黑幕渐隐完成，CSS fadeInSoft动画继续执行');
+            mask.remove(); 
+          }, 500);
+        } else {
+          // 如果没有黑幕，CSS动画已自动执行
+          console.log('✨ AeScape: 无黑幕，CSS fadeInSoft动画自动执行中');
         }
-      } catch (_) {}
+      } catch (error) {
+        console.warn('Boot mask handling failed:', error);
+        console.log('ℹ️ CSS fadeInSoft动画仍会正常执行');
+      }
 
       this.initializeTime();
       this.setupEventListeners();
       this.setupQuickLinks();
       
       // 初始化视频模块
-      this.initializeVideoModule();
+      await this.initializeVideoModule();
       
       await this.checkApiStatus();
-      await this.loadWeatherData();
+      
+      // 异步加载天气数据，不阻塞初始化流程
+      this.loadWeatherData().catch(err => console.warn('Weather data loading failed:', err));
+      
+      // 检查特殊触发条件（确保所有系统初始化完成后执行）
+      setTimeout(() => this.checkSpecialTriggers(), 600);
       
       this.startTimers();
       
@@ -879,7 +900,7 @@ class AeScapeNewTab {
   }
 
   // 视频模块初始化
-  initializeVideoModule() {
+  async initializeVideoModule() {
     try {
       console.log('Initializing video module...');
       
@@ -899,11 +920,26 @@ class AeScapeNewTab {
       // 初始化抽卡系统
       this.cardSystem = new AnimationCardSystem();
 
-      // 初始化触发管理器
+      // 初始化天气触发管理器
       this.triggerManager = new WeatherTriggerManager();
 
+      // 初始化视频触发管理器（用于特殊场景触发）
+      if (typeof VideoTriggerManager !== 'undefined') {
+        this.videoTriggerManager = new VideoTriggerManager({
+          enableWelcomeVideo: true,
+          enableSettingsVideo: true,
+          enableRestartVideo: true,
+          enableUpdateVideo: true,
+          enableFirstLoadCarousel: true, // 启用首次载入轮播
+          minTriggerInterval: 10 * 1000, // 减少最小间隔到10秒用于测试
+          debug: true
+        });
+        await this.videoTriggerManager.init();
+        console.log('Video trigger manager initialized successfully');
+      }
+
       // 加载视频设置
-      this.loadVideoSettings();
+      await this.loadVideoSettings();
 
       console.log('Video module initialized successfully');
     } catch (error) {
@@ -914,11 +950,19 @@ class AeScapeNewTab {
   // 加载视频设置
   async loadVideoSettings() {
     try {
-      const result = await chrome.storage.local.get(['videoSettings']);
-      if (result.videoSettings) {
-        this.videoSettings = { ...this.videoSettings, ...result.videoSettings };
-        this.updateVideoSettingsUI();
+      const result = await chrome.storage.local.get(['videoSettings', 'aescape_config']);
+      
+      // 优先从统一配置中读取
+      if (result.aescape_config?.video) {
+        this.videoSettings = { ...this.videoSettings, ...result.aescape_config.video };
       }
+      // 备选从旧设置中读取
+      else if (result.videoSettings) {
+        this.videoSettings = { ...this.videoSettings, ...result.videoSettings };
+      }
+      
+      this.updateVideoSettingsUI();
+      console.log('Video settings loaded:', this.videoSettings);
     } catch (error) {
       console.error('Failed to load video settings:', error);
     }
@@ -974,12 +1018,23 @@ class AeScapeNewTab {
     }
   }
 
-  // 获取天气类型
+  // 获取天气类型 - 使用智能映射器
   getWeatherType(weatherData) {
     if (!weatherData || !weatherData.weather || !weatherData.weather[0]) {
       return 'clear';
     }
 
+    // 使用智能天气API映射器
+    if (typeof WeatherAPIMapper !== 'undefined') {
+      try {
+        const mapper = new WeatherAPIMapper();
+        return mapper.mapWeatherData(weatherData, 'openweather');
+      } catch (error) {
+        console.warn('Weather API mapper failed, using fallback:', error);
+      }
+    }
+
+    // 备用映射逻辑
     const weatherCode = weatherData.weather[0].id;
     const weatherMain = weatherData.weather[0].main.toLowerCase();
 
@@ -992,13 +1047,115 @@ class AeScapeNewTab {
     if (weatherCode === 800) return 'clear';
     if (weatherCode >= 801 && weatherCode <= 804) return 'cloudy';
 
-    return weatherMain;
+    return weatherMain || 'clear';
+  }
+
+  // 检查特殊触发条件（首次安装、设置完成等）
+  async checkSpecialTriggers() {
+    console.log('🔍 checkSpecialTriggers: 开始检查特殊触发条件...');
+    
+    if (!this.videoTriggerManager) {
+      console.warn('❌ videoTriggerManager未初始化');
+      return;
+    }
+    
+    if (!this.videoSettings.enabled) {
+      console.log('ℹ️ 视频设置已禁用，跳过触发检查');
+      return;
+    }
+
+    if (!this.videoManager || !this.cardSystem) {
+      console.warn('❌ 视频系统未完全初始化，等待1秒后重试...');
+      setTimeout(() => this.checkSpecialTriggers(), 1000);
+      return;
+    }
+
+    try {
+      console.log('🎬 开始检查特殊视频触发条件...');
+      
+      const triggerResult = await this.videoTriggerManager.checkShouldTriggerVideo();
+      
+      console.log('🎯 触发检查结果:', triggerResult);
+      
+      if (triggerResult.shouldTrigger) {
+        console.log(`Special trigger detected: ${triggerResult.reason} (${triggerResult.triggerType})`);
+        
+        // 记录触发事件
+        await this.videoTriggerManager.recordTrigger(triggerResult.triggerType, triggerResult.reason);
+        
+        // 检查是否需要轮播
+        if (triggerResult.needsCarousel) {
+          console.log('开始首次载入轮播：雨雪云闪电雾各一个');
+          setTimeout(() => this.startFirstLoadCarousel(), 1000);
+        } else {
+          // 根据触发类型选择合适的天气效果
+          let weatherType = triggerResult.weatherType || 'clear';
+          
+          // 特殊触发使用更华丽的效果
+          switch (triggerResult.triggerType) {
+            case 'welcome':
+              weatherType = 'clear'; // 欢迎视频使用晴天效果
+              break;
+            case 'settings':
+              weatherType = this.lastWeatherType || 'clear'; // 使用当前天气
+              break;
+            case 'restart':
+              weatherType = 'cloudy'; // 重启使用多云效果
+              break;
+            case 'update':
+              weatherType = 'clear'; // 更新使用晴天效果
+              break;
+          }
+          
+          // 延迟播放，确保页面完全加载
+          setTimeout(async () => {
+            await this.playVideoAnimation(weatherType, {
+              reason: triggerResult.reason,
+              triggerType: triggerResult.triggerType
+            });
+          }, 1000);
+        }
+      } else {
+        console.log(`No special trigger: ${triggerResult.reason || 'unknown'}`);
+      }
+    } catch (error) {
+      console.error('Error checking special triggers:', error);
+    }
+  }
+
+  /**
+   * 首次载入轮播：雨雪云闪电雾各一个（0.3s重叠无间隙）
+   */
+  async startFirstLoadCarousel() {
+    const weatherTypes = ['rain', 'snow', 'cloudy', 'thunderstorm', 'fog'];
+    
+    console.log('🎠 开始首次载入轮播（无间隙重叠）:', weatherTypes.join(' ⟶ '));
+    
+    for (let i = 0; i < weatherTypes.length; i++) {
+      const weatherType = weatherTypes[i];
+      // 视频播放时长1.5s，重叠0.3s，所以间隔1.2s
+      const delay = i * 1200; 
+      
+      setTimeout(async () => {
+        console.log(`🎬 轮播第${i + 1}/${weatherTypes.length}: ${weatherType}`);
+        await this.playVideoAnimation(weatherType, {
+          reason: 'first_load_carousel',
+          triggerType: 'carousel',
+          carouselIndex: i + 1,
+          carouselTotal: weatherTypes.length
+        });
+      }, delay);
+    }
+    
+    // 总时长 = (数量-1) * 间隔 + 最后一个视频时长
+    const totalDuration = (weatherTypes.length - 1) * 1.2 + 1.5;
+    console.log(`⏰ 轮播将在${totalDuration}秒内完成（重叠播放）`);
   }
 
   // 播放视频动画
-  async playVideoAnimation(weatherType) {
+  async playVideoAnimation(weatherType, options = {}) {
     try {
-      console.log(`Playing video animation for weather type: ${weatherType}`);
+      console.log(`Playing video animation for weather type: ${weatherType}`, options);
       
       // 抽卡选择视频
       const selectedVideo = this.cardSystem.drawCard(weatherType);
@@ -1007,7 +1164,8 @@ class AeScapeNewTab {
         // 播放视频
         await this.videoManager.playWeatherVideo(weatherType, {
           videoPath: selectedVideo.path,
-          blendMode: selectedVideo.blendMode || 'lighten'
+          blendMode: selectedVideo.blendMode || 'lighten',
+          ...options
         });
       }
     } catch (error) {
@@ -1024,12 +1182,33 @@ document.addEventListener('DOMContentLoaded', () => {
   try {
     if (chrome?.storage?.onChanged) {
       chrome.storage.onChanged.addListener((changes, area) => {
-        if (area === 'local' && changes.currentThemeData?.newValue) {
-          try {
-            window.aeScape.applyThemeData(changes.currentThemeData.newValue);
-          } catch (_) {}
+        if (area === 'local') {
+          // 主题变化时更新
+          if (changes.currentThemeData?.newValue) {
+            try {
+              window.aeScape.applyThemeData(changes.currentThemeData.newValue);
+            } catch (_) {}
+          }
+          
+          // 视频设置变化时重新加载
+          if (changes.videoSettings?.newValue || changes.aescape_config?.newValue) {
+            try {
+              window.aeScape.loadVideoSettings();
+            } catch (_) {}
+          }
         }
       });
     }
   } catch (_) {}
+
+  // 监听页面卸载，标记会话结束
+  window.addEventListener('beforeunload', () => {
+    try {
+      if (window.aeScape?.videoTriggerManager) {
+        window.aeScape.videoTriggerManager.markSessionEnd();
+      }
+    } catch (error) {
+      console.warn('Failed to mark session end:', error);
+    }
+  });
 });

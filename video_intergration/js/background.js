@@ -483,11 +483,26 @@ class WeatherBackgroundService {
 const weatherService = new WeatherBackgroundService();
 
 // 扩展安装处理
-chrome.runtime.onInstalled.addListener((details) => {
-  if (details.reason === 'install') {
-    console.log('AeScape extension installed');
-  } else if (details.reason === 'update') {
-    console.log('AeScape extension updated');
+chrome.runtime.onInstalled.addListener(async (details) => {
+  try {
+    if (details.reason === 'install') {
+      console.log('AeScape extension installed');
+      // 标记首次安装，用于触发首次视频展示
+      await chrome.storage.local.set({ 
+        firstInstall: true,
+        installTime: Date.now(),
+        shouldShowWelcomeVideo: true 
+      });
+    } else if (details.reason === 'update') {
+      console.log('AeScape extension updated');
+      // 更新时也可以选择性展示视频
+      await chrome.storage.local.set({ 
+        recentUpdate: true,
+        updateTime: Date.now() 
+      });
+    }
+  } catch (error) {
+    console.error('Failed to handle extension install/update:', error);
   }
 });
 
