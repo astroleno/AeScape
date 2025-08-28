@@ -204,16 +204,31 @@ class VideoTriggerManager {
     try {
       console.log('VideoTriggerManager: 开始检查首次载入状态...');
       
-      const result = await chrome.storage.local.get(['hasFirstLoadCarousel']);
+      const result = await chrome.storage.local.get(['hasFirstLoadCarousel', 'extensionLoadTime']);
       const hasCarousel = result.hasFirstLoadCarousel || false;
+      const lastLoadTime = result.extensionLoadTime || 0;
+      const now = Date.now();
+      
+      // 如果距离上次扩展载入时间超过10秒，认为是新的载入会话
+      const isNewLoad = now - lastLoadTime > 10000;
       
       console.log('VideoTriggerManager: 首次载入检查结果:', {
         hasFirstLoadCarousel: hasCarousel,
+        lastLoadTime: lastLoadTime,
+        now: now,
+        isNewLoad: isNewLoad,
         storageResult: result
       });
       
-      if (!hasCarousel) {
-        console.log('🎠 VideoTriggerManager: 检测到首次载入，准备触发轮播！');
+      if (!hasCarousel || isNewLoad) {
+        console.log('🎠 VideoTriggerManager: 检测到首次载入或新载入会话，准备触发轮播！');
+        
+        // 更新载入时间
+        await chrome.storage.local.set({ 
+          extensionLoadTime: now,
+          hasFirstLoadCarousel: false  // 重置轮播状态
+        });
+        
         return true;
       } else {
         console.log('VideoTriggerManager: 首次载入轮播已完成，跳过');
@@ -327,12 +342,13 @@ class VideoTriggerManager {
         }
       }
       
-      // 4. 会话重启触发（首次打开标签页）
+      // 4. 会话重启触发（仅在真正的会话重启时）
       if (this.config.enableRestartVideo && this.state.isFirstTabThisSession && 
           !this.state.hasTriggeredThisSession) {
         const sessionAge = now - this.state.sessionStartTime;
-        // 会话开始后30秒内触发
-        if (sessionAge < 30 * 1000) {
+        // 必须满足：1）会话开始后30秒内，2）距离上次触发超过30分钟
+        const timeSinceLastTrigger = now - this.state.lastTriggerTime;
+        if (sessionAge < 30 * 1000 && timeSinceLastTrigger > 30 * 60 * 1000) {
           result.shouldTrigger = true;
           result.reason = 'session_restart';
           result.triggerType = 'restart';
@@ -341,6 +357,10 @@ class VideoTriggerManager {
           this.state.hasTriggeredThisSession = true;
           await this.saveState();
           return result;
+        } else {
+          // 不触发，但标记已检查过
+          this.state.isFirstTabThisSession = false;
+          await this.saveState();
         }
       }
       

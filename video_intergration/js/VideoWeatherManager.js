@@ -260,9 +260,9 @@ class VideoWeatherManager {
           if (settled) return;
           settled = true;
           clearAll();
-          console.warn('VideoWeatherManager: 视频加载超时', videoPath);
+          // VideoWeatherManager: 视频加载超时（静默处理）
           resolve(false);
-        }, 6000);
+        }, 10000);  // 增加到10秒
       });
       
     } catch (error) {

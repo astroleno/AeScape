@@ -19,7 +19,8 @@ class AeScapeNewTab {
     this.videoSettings = {
       enabled: true,
       weatherChangeTrigger: true,
-      intervalMinutes: 'off'
+      intervalMinutes: '15',  // 默认15分钟
+      autoTrigger: true      // 启用自动触发
     };
     
     // 优化模块
@@ -67,8 +68,8 @@ class AeScapeNewTab {
       // 异步加载天气数据，不阻塞初始化流程
       this.loadWeatherData().catch(err => console.warn('Weather data loading failed:', err));
       
-      // 检查特殊触发条件（确保所有系统初始化完成后执行）
-      setTimeout(() => this.checkSpecialTriggers(), 600);
+      // 检查特殊触发条件（系统初始化完成后立即执行）
+      setTimeout(() => this.checkSpecialTriggers(), 100);
       
       this.startTimers();
       
@@ -385,15 +386,16 @@ class AeScapeNewTab {
     }
   }
 
-  // 天气数据加载 - 支持默认晴天天气
+  // 天气数据加载 - 支持API天气优先，时间晴天备选
   async loadWeatherData() {
     try {
       let weatherDataLoaded = false;
       let locationDataLoaded = false;
+      let useApiWeather = false; // 标记是否使用了API天气
 
       // 检查扩展是否可用
       if (!this.hasExtensionContext()) {
-        console.log('[AeScape] 扩展上下文不可用，使用默认晴天天气');
+        console.log('[AeScape] 扩展上下文不可用，使用时间备选晴天天气');
         this.setDefaultWeatherData();
         this.setDefaultLocationData();
         return;
@@ -416,14 +418,16 @@ class AeScapeNewTab {
           this.weatherData = response.data;
           this.currentLocation = response.data.location;
           this.updateWeatherUI(response.data);
-          await this.updateWeatherTheme(response.data);
+          // API天气优先使用，直接更新主题
+          await this.updateWeatherTheme(response.data, true); // true表示API天气
           weatherDataLoaded = true;
-          console.log('[AeScape] 天气数据加载成功');
+          useApiWeather = true;
+          console.log('[AeScape] API天气数据加载成功，优先使用');
         } else {
-          // 天气数据响应无效，将使用默认数据（不显示错误）
+          // 天气数据响应无效，将使用时间备选（静默处理）
         }
       } catch (weatherError) {
-        // 天气数据加载失败，将使用默认数据（不显示错误）
+        // 天气数据加载失败，将使用时间备选（静默处理）
       }
 
       try {
@@ -441,33 +445,31 @@ class AeScapeNewTab {
           locationDataLoaded = true;
           console.log('[AeScape] 位置数据加载成功');
         } else {
-          // 位置数据响应无效，将使用默认位置（不显示错误）
+          // 位置数据响应无效，将使用默认位置（静默处理）
         }
       } catch (locationError) {
-        // 位置数据加载失败，将使用默认位置（不显示错误）
+        // 位置数据加载失败，将使用默认位置（静默处理）
       }
 
-      // 如果数据加载失败，使用默认数据
+      // 如果API天气数据加载失败，使用时间备选晴天
       if (!weatherDataLoaded) {
-        // 天气数据响应无效，使用默认晴天数据（静默）
+        console.log('[AeScape] API天气不可用，使用时间备选晴天数据');
         this.setDefaultWeatherData();
         weatherDataLoaded = true; // 标记已处理
+        // 时间备选主题更新
+        await this.updateWeatherTheme(this.weatherData, false); // false表示时间备选
       }
 
       if (!locationDataLoaded && !this.currentLocation) {
-        // 位置数据无效，使用默认位置（静默）
+        // 位置数据无效，使用默认位置（静默处理）
         this.setDefaultLocationData();
         locationDataLoaded = true; // 标记已处理
-      }
-
-      // 确保有数据后再更新主题
-      if (weatherDataLoaded && this.weatherData) {
-        await this.updateWeatherTheme(this.weatherData);
       }
 
     } catch (error) {
       console.error('[AeScape] 加载天气数据时发生错误:', error);
       this.setDefaultWeatherData();
+      await this.updateWeatherTheme(this.weatherData, false); // 错误时使用时间备选
     }
   }
 
@@ -507,10 +509,6 @@ class AeScapeNewTab {
     };
 
     this.updateWeatherUI(this.weatherData);
-    // 异步更新主题，避免阻塞
-    this.updateWeatherTheme(this.weatherData).catch(err => 
-      console.warn('[AeScape] 更新默认天气主题失败:', err)
-    );
     console.log('[AeScape] 默认晴天天气数据已设置:', this.weatherData);
   }
 
@@ -527,9 +525,6 @@ class AeScapeNewTab {
   }
 
   updateWeatherUI(weather) {
-    // 检查视频动画
-    this.checkVideoAnimation(weather);
-    
     const elements = {
       location: document.getElementById('location-name'),
       temperature: document.getElementById('current-temp'),
@@ -609,20 +604,34 @@ class AeScapeNewTab {
     }
   }
 
-  async updateWeatherTheme(weather) {
+  async updateWeatherTheme(weather, isApiWeather = true) {
     try {
-      // 优先直接从 storage 读取统一主题快照（由背景集中写入）
-      if (chrome?.storage?.local?.get) {
-        const stored = await chrome.storage.local.get(['currentThemeData']);
-        if (stored?.currentThemeData) {
-          this.applyThemeData(stored.currentThemeData);
-          return;
+      if (isApiWeather) {
+        // API天气：优先从storage读取统一主题快照（由background基于API天气生成）
+        console.log('[AeScape] 使用API天气主题');
+        if (chrome?.storage?.local?.get) {
+          const stored = await chrome.storage.local.get(['currentThemeData']);
+          if (stored?.currentThemeData) {
+            this.applyThemeData(stored.currentThemeData);
+            return;
+          }
         }
-      }
-      // 兜底：向背景请求一次
-      const themeResponse = await this.sendMessageWithRetry({ type: 'theme.getCurrent' }, 3, 150);
-      if (themeResponse?.success && themeResponse?.data) {
-        this.applyThemeData(themeResponse.data);
+        // 兜底：向背景请求API天气主题
+        const themeResponse = await this.sendMessageWithRetry({ type: 'theme.getCurrent' }, 3, 150);
+        if (themeResponse?.success && themeResponse?.data) {
+          this.applyThemeData(themeResponse.data);
+        }
+      } else {
+        // 时间备选：直接使用全局主题管理器生成时间主题
+        console.log('[AeScape] 使用时间备选主题');
+        if (window.GlobalThemeManager) {
+          const now = new Date();
+          const hour = now.getHours();
+          const isNight = hour < 6 || hour > 19;
+          
+          // 直接设置时间备选的晴天主题
+          window.GlobalThemeManager.setGlobalTheme('clear', hour, isNight);
+        }
       }
     } catch (error) {
       console.warn('Failed to apply theme:', error);
@@ -1131,7 +1140,21 @@ class AeScapeNewTab {
 
   // 获取天气类型 - 使用智能映射器
   getWeatherType(weatherData) {
-    if (!weatherData || !weatherData.weather || !weatherData.weather[0]) {
+    if (!weatherData || !weatherData.weather) {
+      return 'clear';
+    }
+
+    // 支持两种数据结构：API格式和内部格式
+    let weatherInfo = null;
+    if (Array.isArray(weatherData.weather)) {
+      // OpenWeather API格式：weather是数组
+      weatherInfo = weatherData.weather[0];
+    } else if (typeof weatherData.weather === 'object') {
+      // 内部格式：weather是对象
+      weatherInfo = weatherData.weather;
+    }
+
+    if (!weatherInfo) {
       return 'clear';
     }
 
@@ -1146,19 +1169,29 @@ class AeScapeNewTab {
     }
 
     // 备用映射逻辑
-    const weatherCode = weatherData.weather[0].id;
-    const weatherMain = weatherData.weather[0].main.toLowerCase();
+    const weatherCode = weatherInfo.id || weatherInfo.code;
+    const weatherMain = (weatherInfo.main || weatherInfo.code || '').toString().toLowerCase();
 
     // 根据天气代码映射到视频类型
-    if (weatherCode >= 200 && weatherCode < 300) return 'thunderstorm';
-    if (weatherCode >= 300 && weatherCode < 400) return 'rain';
-    if (weatherCode >= 500 && weatherCode < 600) return 'rain';
-    if (weatherCode >= 600 && weatherCode < 700) return 'snow';
-    if (weatherCode >= 700 && weatherCode < 800) return 'fog';
-    if (weatherCode === 800) return 'clear';
-    if (weatherCode >= 801 && weatherCode <= 804) return 'cloudy';
+    if (typeof weatherCode === 'number') {
+      if (weatherCode >= 200 && weatherCode < 300) return 'thunderstorm';
+      if (weatherCode >= 300 && weatherCode < 400) return 'rain';
+      if (weatherCode >= 500 && weatherCode < 600) return 'rain';
+      if (weatherCode >= 600 && weatherCode < 700) return 'snow';
+      if (weatherCode >= 700 && weatherCode < 800) return 'fog';
+      if (weatherCode === 800) return 'clear';
+      if (weatherCode >= 801 && weatherCode <= 804) return 'cloudy';
+    }
 
-    return weatherMain || 'clear';
+    // 字符串匹配
+    if (weatherMain.includes('clear')) return 'clear';
+    if (weatherMain.includes('cloud')) return 'cloudy';
+    if (weatherMain.includes('rain')) return 'rain';
+    if (weatherMain.includes('snow')) return 'snow';
+    if (weatherMain.includes('fog') || weatherMain.includes('mist')) return 'fog';
+    if (weatherMain.includes('thunder')) return 'thunderstorm';
+
+    return 'clear';
   }
 
   // 检查特殊触发条件（首次安装、设置完成等）
@@ -1181,6 +1214,17 @@ class AeScapeNewTab {
       return;
     }
 
+    // 调试：重置首次轮播状态（开发时使用）
+    if (window.location.search.includes('debug=reset')) {
+      console.log('🔧 调试模式：重置首次轮播状态');
+      try {
+        await chrome.storage.local.set({ hasFirstLoadCarousel: false });
+        console.log('✅ 首次轮播状态已重置');
+      } catch (e) {
+        console.warn('重置失败:', e);
+      }
+    }
+
     try {
       console.log('🎬 开始检查特殊视频触发条件...');
       
@@ -1191,13 +1235,16 @@ class AeScapeNewTab {
       if (triggerResult.shouldTrigger) {
         console.log(`Special trigger detected: ${triggerResult.reason} (${triggerResult.triggerType})`);
         
+        // 显示黑幕
+        this.showVideoMask();
+        
         // 记录触发事件
         await this.videoTriggerManager.recordTrigger(triggerResult.triggerType, triggerResult.reason);
         
         // 检查是否需要轮播
         if (triggerResult.needsCarousel) {
-          console.log('开始首次载入轮播：雨雪云闪电雾各一个');
-          setTimeout(() => this.startFirstLoadCarousel(), 1000);
+          console.log('开始首次载入轮播：晴云雨雪雷5个视频');
+          this.startFirstLoadCarousel();  // 立即开始轮播
         } else {
           // 根据触发类型选择合适的天气效果
           let weatherType = triggerResult.weatherType || 'clear';
@@ -1218,34 +1265,59 @@ class AeScapeNewTab {
               break;
           }
           
-          // 延迟播放，确保页面完全加载
-          setTimeout(async () => {
-            await this.playVideoAnimation(weatherType, {
-              reason: triggerResult.reason,
-              triggerType: triggerResult.triggerType
-            });
-          }, 1000);
+          // 立即播放视频，不再延迟
+          await this.playVideoAnimation(weatherType, {
+            reason: triggerResult.reason,
+            triggerType: triggerResult.triggerType
+          });
         }
       } else {
-        console.log(`No special trigger: ${triggerResult.reason || 'unknown'}`);
+        console.log(`No special trigger: ${triggerResult.reason || 'unknown'} - 不显示黑幕`);
+        // 不需要播放视频时，隐藏黑幕（如果有的话）
+        this.hideVideoMask();
       }
     } catch (error) {
       console.error('Error checking special triggers:', error);
     }
   }
 
+  // 显示视频黑幕
+  showVideoMask() {
+    const mask = document.getElementById('video-mask');
+    if (mask) {
+      mask.style.display = 'block';
+      // 强制重流后添加show类
+      mask.offsetHeight;
+      mask.classList.add('show');
+      console.log('🎭 显示视频黑幕');
+    }
+  }
+
+  // 隐藏视频黑幕
+  hideVideoMask() {
+    const mask = document.getElementById('video-mask');
+    if (mask) {
+      mask.classList.remove('show');
+      // 等待过渡完成后隐藏
+      setTimeout(() => {
+        mask.style.display = 'none';
+      }, 300);
+      console.log('🎭 隐藏视频黑幕');
+    }
+  }
+
   /**
-   * 首次载入轮播：雨雪云闪电雾各一个（0.3s重叠无间隙）
+   * 首次载入轮播：晴云雨雪雷5个视频重叠播放
    */
   async startFirstLoadCarousel() {
-    const weatherTypes = ['rain', 'snow', 'cloudy', 'thunderstorm', 'fog'];
+    const weatherTypes = ['clear', 'cloudy', 'rain', 'snow', 'thunderstorm'];
     
-    console.log('🎠 开始首次载入轮播（无间隙重叠）:', weatherTypes.join(' ⟶ '));
+    console.log('🎠 开始首次载入轮播（重叠播放）:', weatherTypes.join(' ⟶ '));
     
     for (let i = 0; i < weatherTypes.length; i++) {
       const weatherType = weatherTypes[i];
-      // 视频播放时长1.5s，重叠0.3s，所以间隔1.2s
-      const delay = i * 1200; 
+      // 视频播放时长1.5s，重叠播放间隔0.8s
+      const delay = i * 800; 
       
       setTimeout(async () => {
         console.log(`🎬 轮播第${i + 1}/${weatherTypes.length}: ${weatherType}`);
@@ -1253,14 +1325,20 @@ class AeScapeNewTab {
           reason: 'first_load_carousel',
           triggerType: 'carousel',
           carouselIndex: i + 1,
-          carouselTotal: weatherTypes.length
+          carouselTotal: weatherTypes.length,
+          isCarousel: true // 标记为轮播，不重复显示/隐藏黑幕
         });
       }, delay);
     }
     
     // 总时长 = (数量-1) * 间隔 + 最后一个视频时长
-    const totalDuration = (weatherTypes.length - 1) * 1.2 + 1.5;
+    const totalDuration = (weatherTypes.length - 1) * 0.8 + 1.5;
     console.log(`⏰ 轮播将在${totalDuration}秒内完成（重叠播放）`);
+    
+    // 轮播结束后隐藏黑幕
+    setTimeout(() => {
+      this.hideVideoMask();
+    }, totalDuration * 1000 + 500);
   }
 
   // 播放视频动画
@@ -1278,9 +1356,26 @@ class AeScapeNewTab {
           blendMode: selectedVideo.blendMode || 'lighten',
           ...options
         });
+        
+        // 播放完成后隐藏黑幕
+        if (!options.isCarousel) {
+          // 视频时长约1.5秒，延迟隐藏黑幕
+          setTimeout(() => {
+            this.hideVideoMask();
+          }, 1800);
+        }
+      } else {
+        // 没有视频时立即隐藏黑幕
+        if (!options.isCarousel) {
+          this.hideVideoMask();
+        }
       }
     } catch (error) {
       console.error('Error playing video animation:', error);
+      // 出错时也要隐藏黑幕
+      if (!options.isCarousel) {
+        this.hideVideoMask();
+      }
     }
   }
 }

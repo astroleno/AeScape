@@ -174,12 +174,23 @@ class VideoStreamOptimizer {
     try {
       // 连接优化提示 - 只有当src有效时才预加载
       if (video && video.src && video.src.trim()) {
-        const link = document.createElement('link');
-        link.rel = 'preload';
-        link.href = video.src;
-        link.as = 'video';
-        link.type = 'video/webm';
-        document.head.appendChild(link);
+        try {
+          const link = document.createElement('link');
+          link.rel = 'preload';
+          link.href = video.src;
+          // 使用更兼容的as值或完全省略
+          if ('HTMLVideoElement' in window) {
+            link.as = 'fetch';  // 使用更通用的fetch而不是video
+            link.crossOrigin = 'anonymous';
+          }
+          link.type = 'video/webm';
+          document.head.appendChild(link);
+        } catch (preloadError) {
+          // 预加载失败时静默处理
+          if (this.config.debug) {
+            console.warn('[VideoStreamOptimizer] 预加载失败:', preloadError);
+          }
+        }
       }
     } catch (error) {
       // 静默处理预加载错误

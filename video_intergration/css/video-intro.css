@@ -406,7 +406,7 @@
 
 /* 错误状态 */
 .video-error {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--theme-gradient, transparent);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -449,7 +449,7 @@
 }
 
 .debug-mode .video-stage {
-  border: 1px solid blue;
+  border: 1px solid var(--theme-primary, transparent);
 }
 
 .debug-mode .fx-core {

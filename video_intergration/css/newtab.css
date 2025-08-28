@@ -8,11 +8,11 @@
 
 /* 优化后的CSS变量 */
 :root {
-  /* 主题颜色 - 完全由主题系统动态设置，无默认值 */
-  --theme-primary: transparent;
-  --theme-secondary: transparent;
-  --theme-accent: transparent;
-  --theme-gradient: transparent;
+  /* 主题颜色 - 设置时间晨光主题作为默认值，避免闪现 */
+  --theme-primary: rgba(255, 183, 77, 0.6);
+  --theme-secondary: rgba(255, 138, 101, 0.4);
+  --theme-accent: rgba(255, 204, 128, 0.3);
+  --theme-gradient: linear-gradient(135deg, rgba(255, 183, 77, 0.25) 0%, rgba(255, 138, 101, 0.05) 100%);
   --theme-text: rgba(33, 33, 33, 0.92);
   
   /* 毛玻璃效果 - 更轻微 */
@@ -71,6 +71,24 @@ html, body {
 }
 
 /* 视频动画容器 */
+/* 条件黑幕 - 仅在播放视频时显示 */
+.video-mask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgb(0, 0, 0);  /* 纯黑色，不透明 */
+  z-index: 9998;  /* 确保在视频容器下方 */
+  opacity: 0;
+  transition: opacity 0.15s ease-out;  /* 更快的过渡 */
+  pointer-events: none;
+}
+
+.video-mask.show {
+  opacity: 1;
+}
+
 .video-container {
   position: fixed;
   top: 0;

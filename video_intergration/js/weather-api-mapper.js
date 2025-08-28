@@ -270,7 +270,7 @@ class WeatherAPIMapper {
       console.error('WeatherAPIMapper: 映射过程出错', error);
     }
 
-    console.warn('WeatherAPIMapper: 无法映射天气数据，使用默认值');
+    // WeatherAPIMapper: 无法映射天气数据，使用默认值（静默处理）
     return this.INTERNAL_WEATHER_TYPES.CLEAR;
   }
 
