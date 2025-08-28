@@ -629,10 +629,21 @@ window.GlobalThemeManager = {
     } catch (e) { console.warn('[GlobalThemeManager] 应用到 popup 失败:', e); }
 
     try {
-      if (document.querySelector('.background-layer')) {
+      // 直接应用主题到根元素，不依赖特定DOM元素
+      if (window.unifiedTheme) {
         window.unifiedTheme.applyToNewTab(weatherCode, hour, isNight, sunTimes);
       }
-    } catch (e) { console.warn('[GlobalThemeManager] 应用到 newtab 失败:', e); }
+    } catch (e) { 
+      // 应用到 newtab 失败，使用备用方案（静默）
+      try {
+        const root = document.documentElement;
+        const theme = window.unifiedTheme?.getTheme(weatherCode, hour, isNight, sunTimes);
+        if (theme) {
+          root.style.setProperty('--theme-gradient', theme.gradient);
+          root.style.setProperty('--theme-text', theme.text);
+        }
+      } catch (_) {}
+    }
     
     // 通知悬浮球更新（如果存在集成方）
     try {
@@ -643,28 +654,92 @@ window.GlobalThemeManager = {
   }
 };
 
-// 初始化默认主题
-document.addEventListener('DOMContentLoaded', async function() {
-  try {
-    // 若为 Popup 页面，交由 popup.js 从 storage 驱动，避免覆盖
-    if (document.body && document.body.classList.contains('popup-body')) {
-      return;
-    }
-
-    // 若 storage 已有统一主题快照，则不在前端主动设置，避免与后台冲突
-    if (chrome?.storage?.local?.get) {
-      try {
-        const stored = await chrome.storage.local.get(['currentThemeData']);
-        if (stored && stored.currentThemeData) {
-          return;
+// 同步设置默认主题 - 立即可用
+try {
+  console.log('[AeScape] 主题系统立即初始化');
+  const now = new Date();
+  const hour = now.getHours();
+  const isNight = hour < 6 || hour > 19;
+  
+  // 立即设置默认主题，不等待任何异步操作
+  window.GlobalThemeManager.setGlobalTheme('clear', hour, isNight);
+  console.log('[AeScape] 默认主题已立即应用');
+  
+  // 异步优化主题（不阻塞）
+  (async function() {
+    try {
+      // 检查是否有存储的主题（不阻塞主线程）
+      if (typeof chrome !== 'undefined' && chrome?.storage?.local?.get) {
+        setTimeout(async () => {
+          try {
+            const stored = await chrome.storage.local.get(['currentThemeData']);
+            if (stored?.currentThemeData?.theme) {
+              const themeAge = Date.now() - (stored.currentThemeData.timestamp || 0);
+              if (themeAge < 60 * 60 * 1000) { // 1小时内有效
+                console.log('[AeScape] 使用存储的优化主题');
+                window.GlobalThemeManager.setGlobalTheme(
+                  stored.currentThemeData.weatherCode, 
+                  stored.currentThemeData.hour,
+                  stored.currentThemeData.isNight,
+                  stored.currentThemeData.sunTimes
+                );
+              }
+            }
+          } catch (err) {
+            // 优化主题加载失败，使用默认值（静默）
+          }
+        }, 100); // 延迟100ms，不阻塞初始渲染
+      }
+      
+      // 获取更准确的日出日落时间（完全异步）
+      setTimeout(async () => {
+        try {
+          const themeInstance = window.unifiedTheme || new UnifiedThemeSystem();
+          const sunTimes = await themeInstance.getSunTimes(39.9042, 116.4074);
+          if (sunTimes) {
+            window.GlobalThemeManager.setGlobalTheme('clear', hour, isNight, sunTimes);
+            console.log('[AeScape] 主题已使用精确日出日落时间更新');
+          }
+        } catch (err) {
+          // 日出日落时间获取失败，使用默认值（不显示错误）
         }
-      } catch (_) {}
+      }, 500);
+      
+    } catch (err) {
+      // 主题异步优化失败，继续使用默认值（静默）
     }
+  })();
+  
+} catch (err) {
+  // 主题系统初始化失败，CSS中已有备用主题（静默）
+}
 
-    const hour = new Date().getHours();
+// 设置主题更新定时器
+setInterval(() => {
+  try {
+    const now = new Date();
+    const hour = now.getHours();
     const isNight = hour < 6 || hour > 19;
-    window.GlobalThemeManager.setGlobalTheme('clear', hour, isNight);
-  } catch (_) {
-    // 忽略初始化失败
+    
+    const currentTheme = window.GlobalThemeManager.getCurrentTheme();
+    if (!currentTheme || currentTheme.hour !== hour || currentTheme.isNight !== isNight) {
+      console.log('[AeScape] 时间变化，更新主题');
+      window.GlobalThemeManager.setGlobalTheme('clear', hour, isNight, currentTheme?.sunTimes);
+    }
+  } catch (err) {
+    // 主题定时更新失败（静默）
   }
+}, 15 * 60 * 1000);
+
+// 额外的DOM加载完成监听器，确保主题应用到页面
+document.addEventListener('DOMContentLoaded', function() {
+  // 确保主题已经设置
+  setTimeout(() => {
+    if (!window.GlobalThemeManager.getCurrentTheme()) {
+      console.log('[AeScape] DOM加载完成，补充设置默认主题');
+      const hour = new Date().getHours();
+      const isNight = hour < 6 || hour > 19;
+      window.GlobalThemeManager.setGlobalTheme('clear', hour, isNight);
+    }
+  }, 100);
 });

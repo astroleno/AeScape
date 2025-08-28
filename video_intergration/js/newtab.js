@@ -39,30 +39,22 @@ class AeScapeNewTab {
       // 初始化优化模块
       await this.initOptimizationModules();
       
-      // 开场黑幕：0.3s等待 + 0.5s渐隐，然后启动内容呼吸感
+      // 简化启动 - 直接初始化，让CSS动画自然触发
+      await this.continueInit();
+      
+      console.log('AeScape NewTab initialized successfully');
+    } catch (error) {
+      console.error('AeScape初始化失败:', error);
+      // 即使失败也继续基本初始化
       try {
-        const mask = document.getElementById('boot-mask');
-        if (mask) {
-          console.log('AeScape: 开场黑幕初始化完成');
-          
-          // 立即开始黑幕渐隐
-          console.log('🖤 AeScape: 立即开始0.5s黑幕渐隐...');
-          mask.style.opacity = '0'; 
-          
-          // 0.5s后移除黑幕
-          setTimeout(() => { 
-            console.log('✨ AeScape: 黑幕渐隐完成，CSS fadeInSoft动画继续执行');
-            mask.remove(); 
-          }, 500);
-        } else {
-          // 如果没有黑幕，CSS动画已自动执行
-          console.log('✨ AeScape: 无黑幕，CSS fadeInSoft动画自动执行中');
-        }
-      } catch (error) {
-        console.warn('Boot mask handling failed:', error);
-        console.log('ℹ️ CSS fadeInSoft动画仍会正常执行');
-      }
+        await this.continueInit();
+      } catch (_) {}
+    }
+  }
 
+  // 继续初始化流程
+  async continueInit() {
+    try {
       this.initializeTime();
       this.setupEventListeners();
       this.setupQuickLinks();
@@ -176,8 +168,16 @@ class AeScapeNewTab {
         return response;
       } catch (err) {
         lastError = err;
-        // 常见报错：Receiving end does not exist / Extension context invalidated
-        // 退避等待后重试
+        // 消息发送失败（静默重试）
+        
+        // 如果扩展上下文失效，立即停止重试
+        if (err.message.includes('Extension context invalidated') || 
+            err.message.includes('receiving end does not exist')) {
+          // 扩展上下文失效，停止消息重试（静默）
+          break;
+        }
+        
+        // 其他错误：退避等待后重试
         const delay = baseDelayMs * attempt;
         await new Promise(r => setTimeout(r, delay));
       }
@@ -188,8 +188,12 @@ class AeScapeNewTab {
   // 判断是否处于扩展上下文（兼容 chrome 未定义的场景）
   hasExtensionContext() {
     try {
-      return typeof chrome !== 'undefined' && !!(chrome.runtime && chrome.runtime.id);
-    } catch (_e) {
+      return typeof chrome !== 'undefined' && 
+             chrome.runtime && 
+             chrome.runtime.id && 
+             !chrome.runtime.lastError;
+    } catch (error) {
+      console.warn('[AeScape] 扩展上下文检测失败:', error.message);
       return false;
     }
   }
@@ -254,8 +258,7 @@ class AeScapeNewTab {
 
     // 按钮事件 - 使用箭头函数确保this绑定
     document.getElementById('settings-btn')?.addEventListener('click', () => this.toggleSettings());
-    document.getElementById('refresh-btn')?.addEventListener('click', () => this.refreshWeather());
-    document.getElementById('location-btn')?.addEventListener('click', () => this.toggleLocationModal());
+    document.getElementById('refresh-weather-btn')?.addEventListener('click', () => this.refreshWeather());
     
     // 设置面板
     document.getElementById('close-settings')?.addEventListener('click', () => this.toggleSettings());
@@ -382,37 +385,145 @@ class AeScapeNewTab {
     }
   }
 
-  // 天气数据加载
+  // 天气数据加载 - 支持默认晴天天气
   async loadWeatherData() {
     try {
+      let weatherDataLoaded = false;
+      let locationDataLoaded = false;
+
       // 检查扩展是否可用
       if (!this.hasExtensionContext()) {
-        console.log('Extension context not available, skipping weather load');
+        console.log('[AeScape] 扩展上下文不可用，使用默认晴天天气');
+        this.setDefaultWeatherData();
+        this.setDefaultLocationData();
         return;
       }
 
-      // 先 ping 一次，确保 SW 已唤醒
-      try { await this.sendMessageWithRetry({ type: 'ping' }, 1, 0); } catch (_) {}
+      try {
+        // 先 ping 一次，确保 SW 已唤醒
+        try { await this.sendMessageWithRetry({ type: 'ping' }, 1, 0); } catch (_) {}
 
-      const response = await this.sendMessageWithRetry({ type: 'weather.getCurrent' }, 4, 200);
-      
-      if (response?.success && response?.data) {
-        this.weatherData = response.data;
-        this.currentLocation = response.data.location;
-        this.updateWeatherUI(response.data);
-        await this.updateWeatherTheme(response.data);
+        // 设置加载超时 - 3秒内必须完成
+        const weatherTimeout = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Weather data timeout')), 3000)
+        );
+
+        // 尝试加载天气数据
+        const weatherPromise = this.sendMessageWithRetry({ type: 'weather.getCurrent' }, 2, 150);
+        const response = await Promise.race([weatherPromise, weatherTimeout]);
+        
+        if (response?.success && response?.data) {
+          this.weatherData = response.data;
+          this.currentLocation = response.data.location;
+          this.updateWeatherUI(response.data);
+          await this.updateWeatherTheme(response.data);
+          weatherDataLoaded = true;
+          console.log('[AeScape] 天气数据加载成功');
+        } else {
+          // 天气数据响应无效，将使用默认数据（不显示错误）
+        }
+      } catch (weatherError) {
+        // 天气数据加载失败，将使用默认数据（不显示错误）
       }
 
-      const locationResponse = await this.sendMessageWithRetry({ type: 'location.getCurrent' }, 4, 200);
-      
-      if (locationResponse?.success && locationResponse?.data) {
-        this.currentLocation = locationResponse.data;
-        this.updateLocationDisplay(locationResponse.data);
+      try {
+        // 尝试加载位置数据
+        const locationTimeout = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Location data timeout')), 2000)
+        );
+        
+        const locationPromise = this.sendMessageWithRetry({ type: 'location.getCurrent' }, 2, 100);
+        const locationResponse = await Promise.race([locationPromise, locationTimeout]);
+        
+        if (locationResponse?.success && locationResponse?.data) {
+          this.currentLocation = locationResponse.data;
+          this.updateLocationDisplay(locationResponse.data);
+          locationDataLoaded = true;
+          console.log('[AeScape] 位置数据加载成功');
+        } else {
+          // 位置数据响应无效，将使用默认位置（不显示错误）
+        }
+      } catch (locationError) {
+        // 位置数据加载失败，将使用默认位置（不显示错误）
       }
+
+      // 如果数据加载失败，使用默认数据
+      if (!weatherDataLoaded) {
+        // 天气数据响应无效，使用默认晴天数据（静默）
+        this.setDefaultWeatherData();
+        weatherDataLoaded = true; // 标记已处理
+      }
+
+      if (!locationDataLoaded && !this.currentLocation) {
+        // 位置数据无效，使用默认位置（静默）
+        this.setDefaultLocationData();
+        locationDataLoaded = true; // 标记已处理
+      }
+
+      // 确保有数据后再更新主题
+      if (weatherDataLoaded && this.weatherData) {
+        await this.updateWeatherTheme(this.weatherData);
+      }
+
     } catch (error) {
-      console.error('Failed to load weather data:', error);
-      // 静默处理错误，不显示错误状态
+      console.error('[AeScape] 加载天气数据时发生错误:', error);
+      this.setDefaultWeatherData();
     }
+  }
+
+  // 设置默认晴天天气数据
+  setDefaultWeatherData() {
+    const now = new Date();
+    const hour = now.getHours();
+    const isNight = hour < 6 || hour > 19;
+    
+    // 根据时间设置不同的温度
+    let temperature = 22; // 默认22度
+    if (hour >= 6 && hour < 12) {
+      temperature = 18 + Math.floor(Math.random() * 8); // 18-25度
+    } else if (hour >= 12 && hour < 18) {
+      temperature = 22 + Math.floor(Math.random() * 8); // 22-29度
+    } else {
+      temperature = 15 + Math.floor(Math.random() * 10); // 15-24度
+    }
+
+    this.weatherData = {
+      weather: {
+        code: 'clear',
+        description: isNight ? '夜晚晴朗' : '晴朗',
+        id: 800,
+        main: 'Clear',
+        humidity: 45 + Math.floor(Math.random() * 25), // 45-70%
+        windSpeedMps: 0.5 + Math.random() * 2.5, // 0.5-3.0 m/s
+        visibilityKm: 8 + Math.floor(Math.random() * 7), // 8-15 km
+        pressure: 1010 + Math.floor(Math.random() * 20), // 1010-1030 hPa
+        uvIndex: isNight ? 0 : Math.min(10, Math.max(1, Math.floor((hour - 6) / 1.2))) // UV指数基于时间
+      },
+      env: {
+        temperature: temperature,
+        feelsLike: temperature + (-2 + Math.random() * 4), // 体感温度±2度
+        isNight: isNight
+      }
+    };
+
+    this.updateWeatherUI(this.weatherData);
+    // 异步更新主题，避免阻塞
+    this.updateWeatherTheme(this.weatherData).catch(err => 
+      console.warn('[AeScape] 更新默认天气主题失败:', err)
+    );
+    console.log('[AeScape] 默认晴天天气数据已设置:', this.weatherData);
+  }
+
+  // 设置默认位置数据
+  setDefaultLocationData() {
+    this.currentLocation = {
+      name: '当前位置',
+      country: 'CN',
+      lat: 39.9042,
+      lon: 116.4074
+    };
+    this.updateLocationDisplay(this.currentLocation);
+    console.log('[AeScape] 默认位置数据已设置');
   }
 
   updateWeatherUI(weather) {

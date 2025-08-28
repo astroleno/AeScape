@@ -6,10 +6,17 @@
   <title>天景 AeScape</title>
   <link rel="stylesheet" href="css/newtab.css">
   <link rel="stylesheet" href="css/video-intro.css">
+  <style>
+    /* 基础样式 - 主题色由主题系统动态设置 */
+    body {
+      background: var(--theme-gradient, linear-gradient(135deg, rgba(100, 100, 100, 0.05), rgba(150, 150, 150, 0.03)));
+      margin: 0;
+      padding: 0;
+    }
+  </style>
 </head>
 <body>
-  <!-- 开场防闪屏黑幕：0.2s 自动淡出并移除 -->
-  <div id="boot-mask" class="boot-mask"></div>
+  <!-- 黑幕已移除 -->
   <!-- 视频动画容器 -->
   <div id="video-container" class="video-container"></div>
   
@@ -103,23 +110,7 @@
     </div>
   </div>
 
-  <!-- 悬浮操作按钮 -->
-  <div class="floating-actions">
-    <div class="action-button refresh-btn" id="refresh-btn" title="刷新天气">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"></path>
-        <path d="M21 3v5h-5"></path>
-        <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"></path>
-        <path d="M3 21v-5h5"></path>
-      </svg>
-    </div>
-    <div class="action-button location-btn" id="location-btn" title="设置位置">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
-        <circle cx="12" cy="10" r="3"></circle>
-      </svg>
-    </div>
-  </div>
+  <!-- 悬浮按钮已移除，功能集成到设置中 -->
 
   <!-- 设置面板 -->
   <div class="settings-panel" id="settings-panel">
@@ -154,7 +145,10 @@
         <div class="input-group">
           <label for="city-input">城市名称</label>
           <input type="text" id="city-input" placeholder="输入城市名称">
-          <button class="save-btn" id="set-location">设置位置</button>
+          <div class="button-group">
+            <button class="save-btn" id="set-location">设置位置</button>
+            <button class="save-btn" id="refresh-weather-btn">刷新天气</button>
+          </div>
         </div>
         <button class="auto-location-btn" id="auto-location">自动获取位置</button>
       </div>

@@ -8,12 +8,11 @@
 
 /* 优化后的CSS变量 */
 :root {
-  /* 主题颜色 - 由主题系统动态更新 */
-  --theme-primary: rgba(66, 165, 245, 0.12);
-  --theme-secondary: rgba(102, 187, 106, 0.08);
-  --theme-accent: rgba(38, 198, 218, 0.06);
-  --theme-gradient: linear-gradient(135deg, var(--theme-primary) 0%, var(--theme-secondary) 100%);
-  /* 默认文本改为深色，确保在未配置API/主题尚未覆盖时拥有可读性 */
+  /* 主题颜色 - 完全由主题系统动态设置，无默认值 */
+  --theme-primary: transparent;
+  --theme-secondary: transparent;
+  --theme-accent: transparent;
+  --theme-gradient: transparent;
   --theme-text: rgba(33, 33, 33, 0.92);
   
   /* 毛玻璃效果 - 更轻微 */
@@ -83,43 +82,18 @@ html, body {
   overflow: hidden;
 }
 
-/* 开场防闪屏黑幕样式 - 0.3s等待 + 0.5s渐隐 */
-.boot-mask {
-  position: fixed;
-  inset: 0;
-  z-index: 2147483647;
-  background: #000;
-  pointer-events: none;
-  opacity: 1;
-  transition: opacity 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-}
-
-/* 参考ref版本 - 直接设置fadeInSoft动画，不依赖class切换 */
-.status-bar {
-  animation: fadeInSoft 1200ms cubic-bezier(0.23, 1, 0.32, 1) 100ms both;
-}
-
-.main-container {
-  animation: fadeInSoft 1400ms cubic-bezier(0.23, 1, 0.32, 1) 200ms both;
-}
-
-.search-container {
-  animation: fadeInSoft 1400ms cubic-bezier(0.23, 1, 0.32, 1) 200ms both;
-}
-
-.time-container {
-  animation: fadeInSoft 1400ms cubic-bezier(0.23, 1, 0.32, 1) 200ms both;
-}
-
+/* 所有内容温柔呼吸展现 - 无黑幕，直接动画 */
+.status-bar,
+.main-container,
+.search-container,
+.time-container,
 .weather-card-container {
-  animation: fadeInSoft 1400ms cubic-bezier(0.23, 1, 0.32, 1) 200ms both;
+  opacity: 0;
+  transform: translateY(2px) scale(0.998);
+  animation: gentleBreatheIn 2000ms cubic-bezier(0.08, 0.82, 0.17, 1) 200ms both;
 }
 
-.floating-actions {
-  animation: fadeInSoft 1200ms cubic-bezier(0.23, 1, 0.32, 1) 300ms both;
-}
-
-/* 背景层 - 使用主题系统 */
+/* 背景层 - 立即显示，不要动画 */
 .background-layer {
   position: fixed;
   top: 0;
@@ -128,13 +102,12 @@ html, body {
   height: 100%;
   z-index: 1;
   background: var(--theme-gradient);
-  /* 初始禁用过渡，避免加载时从默认色闪到主题色 */
-  transition: none;
+  opacity: 1;
 }
 
-/* 当主题就绪后再开启平滑过渡，减少闪烁 */
+/* 当主题就绪后开启平滑过渡 */
 body.theme-ready .background-layer {
-  transition: background 800ms cubic-bezier(0.4, 0, 0.2, 1);
+  transition: background 800ms cubic-bezier(0.23, 1, 0.32, 1);
 }
 
 .gradient-overlay {
@@ -458,64 +431,7 @@ body.theme-ready .background-layer {
   background: rgba(255, 255, 255, 0.05);
 }
 
-/* 悬浮按钮 - 更精致 */
-.floating-actions {
-  position: fixed;
-  left: 50%; /* 居中对齐 */
-  transform: translateX(-50%);
-  bottom: var(--spacing-lg);
-  display: flex;
-  flex-direction: row; /* 居中时按钮横向排布，更稳定 */
-  gap: var(--spacing-md);
-  z-index: 50;
-}
-
-.action-button {
-  width: 48px;
-  height: 48px;
-  background: var(--glass-bg);
-  backdrop-filter: blur(12px);
-  border: 1px solid var(--glass-border);
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 300ms cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: var(--glass-shadow),
-    0 0 0 1px color-mix(in srgb, var(--theme-primary) 22%, transparent) inset; /* 主题色内边光 */
-  opacity: 0.8;
-  position: relative; /* 为柔光环定位 */
-  color: var(--theme-text);
-}
-
-.action-button:hover {
-  background: var(--glass-bg-hover);
-  transform: scale(1.05);
-  box-shadow: var(--glass-shadow-hover),
-    0 0 0 1px color-mix(in srgb, var(--theme-secondary) 30%, transparent) inset,
-    0 0 24px color-mix(in srgb, var(--theme-primary) 22%, transparent); /* 悬浮时主题色发光 */
-  opacity: 1;
-}
-
-.action-button:active {
-  transform: scale(0.98);
-}
-
-/* 主题色柔光环 */
-.action-button::after {
-  content: "";
-  position: absolute;
-  inset: -4px;
-  border-radius: 999px;
-  pointer-events: none;
-  background: radial-gradient(60% 60% at 50% 50%,
-    color-mix(in srgb, var(--theme-primary) 22%, transparent) 0%,
-    transparent 70%);
-  opacity: 0;
-  transition: opacity 300ms ease;
-}
-.action-button:hover::after { opacity: 1; }
+/* 悬浮按钮已移除 */
 
 /* 设置面板样式 */
 .settings-panel {
@@ -883,6 +799,78 @@ body.theme-ready .background-layer {
   }
 }
 
+/* 温柔的同时呼吸进入动画 - 更加柔和缓慢 */
+@keyframes gentleBreatheIn {
+  0% {
+    opacity: 0;
+    transform: translateY(3px) scale(0.995);
+    filter: blur(0.3px);
+  }
+  40% {
+    opacity: 0.5;
+    transform: translateY(1.5px) scale(0.998);
+    filter: blur(0.15px);
+  }
+  70% {
+    opacity: 0.85;
+    transform: translateY(0.5px) scale(1.001);
+    filter: blur(0.05px);
+  }
+  85% {
+    opacity: 0.95;
+    transform: translateY(0) scale(1.001);
+    filter: blur(0);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+/* 呼吸般的柔和进入动画 */
+@keyframes breatheIn {
+  0% {
+    opacity: 0;
+    transform: translateY(var(--translate-y, 8px)) scale(var(--scale, 0.98));
+    filter: blur(0.5px);
+  }
+  60% {
+    opacity: 0.8;
+    transform: translateY(calc(var(--translate-y, 8px) * 0.2)) scale(0.995);
+    filter: blur(0.2px);
+  }
+  80% {
+    opacity: 0.95;
+    transform: translateY(0) scale(1.002);
+    filter: blur(0);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+/* 背景层专用呼吸动画 */
+@keyframes backgroundBreatheIn {
+  0% {
+    opacity: 0;
+    transform: scale(1.01);
+    filter: blur(1px);
+  }
+  70% {
+    opacity: 0.9;
+    transform: scale(1.005);
+    filter: blur(0.3px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+    filter: blur(0);
+  }
+}
+
 @keyframes fadeInSoft {
   0% {
     opacity: 0;
@@ -950,15 +938,7 @@ body.theme-ready .background-layer {
     gap: var(--spacing-md);
   }
   
-  .floating-actions {
-    bottom: var(--spacing-lg);
-    right: var(--spacing-lg);
-  }
-  
-  .action-button {
-    width: 44px;
-    height: 44px;
-  }
+  /* 浮动按钮已移除 */
 }
 
 @media (max-width: 480px) {

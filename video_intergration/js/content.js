@@ -175,7 +175,7 @@ class AeScapeFloatingBall {
           console.log('[AeScape] 主题系统已加载');
           resolve();
         } else if (attempts >= maxAttempts) {
-          console.warn('[AeScape] 主题系统加载超时，使用默认主题');
+          // 主题系统加载超时，使用默认主题（静默）
           resolve();
         } else {
           setTimeout(checkTheme, 100);
